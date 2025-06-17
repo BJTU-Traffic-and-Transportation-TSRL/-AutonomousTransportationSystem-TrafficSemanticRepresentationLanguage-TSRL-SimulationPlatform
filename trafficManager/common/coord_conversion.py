@@ -1,6 +1,6 @@
 """
 This module provides functions for converting between Frenet and Cartesian coordinates in 2D space.
-
+翻译：这个模块提供了在2D空间中将Frenet坐标和笛卡尔坐标之间进行转换的函数。
 Functions:
     - frenet_to_cartesian2D(rx, ry, ryaw, rkappa, state): 
         Converts Frenet coordinates to Cartesian coordinates.

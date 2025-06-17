@@ -1,6 +1,9 @@
 """
 This file contains the implementation of the TrafficManager class, which manages the traffic simulation, including vehicle behavior updates,
 decision making, and planning. It uses the provided roadgraph and vehicle information to generate trajectories for each vehicle in the simulation.
+
+中文翻译：
+这个文件包含TrafficManager类的实现，它管理交通模拟，包括车辆行为更新、决策和规划。它使用提供的道路图和车辆信息为模拟中的每个车辆生成轨迹。
 """
 
 import copy
@@ -62,8 +65,8 @@ class TrafficManager:
                  config_file_path="./trafficManager/config.yaml"):
         self.sumo_model = model
         self.time_step = 0
-        self.lastseen_vehicles = {}
-        self.config = load_config(config_file_path)
+        self.lastseen_vehicles = {} # 上一帧的车辆信息
+        self.config = load_config(config_file_path) # 交通管理配置文件
         self.last_decision_time = -self.config["DECISION_INTERVAL"]
         self.mul_decisions =None
         self._set_up_keyboard_listener()
@@ -106,7 +109,7 @@ class TrafficManager:
         It then plans the trajectories of the vehicles and updates the last seen vehicles. 
         Finally, it returns the output trajectories.
         """
-        global KEY_INPUT
+        global KEY_INPUT # 2025.5.20
 
         start = time.time()
 

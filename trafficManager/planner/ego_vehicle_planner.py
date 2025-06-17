@@ -14,27 +14,32 @@ from utils.trajectory import State, Trajectory
 
 logging = logger.get_logger(__name__)
 
+"""
+Ego自车轨迹规划
+"""
+
 
 class EgoPlanner(AbstractEgoPlanner):
     def plan(self,
-             ego_veh: Vehicle,
-             observation: Observation,
-             roadgraph: RoadGraph,
-             prediction: Prediction,
-             T,
-             config,
-             ego_decision: MultiDecision = None) -> Trajectory:
+             ego_veh: Vehicle, # 当前车辆
+             observation: Observation, # 观测
+             roadgraph: RoadGraph, # 道路图
+             prediction: Prediction, # 预测
+             T, # 时间
+             config, # 配置
+             ego_decision: MultiDecision = None) -> Trajectory: # 决策
 
-        vehicle_id = ego_veh.id
-        start = time.time()
-        current_lane = roadgraph.get_lane_by_id(ego_veh.lane_id)
+        vehicle_id = ego_veh.id # 车辆ID
+        start = time.time() # 开始时间
+        current_lane = roadgraph.get_lane_by_id(ego_veh.lane_id) # 当前车   道
 
-        obs_list = []
+        obs_list = [] # 障碍物列表
         # Process static obstacle
         for obs in observation.obstacles:
             obs_list.append(obs)
 
         # Process dynamic_obstacles
+        # 处理动态障碍物
         for predict_veh, prediction in prediction.results.items():
             if predict_veh.id == vehicle_id:
                 continue
@@ -64,12 +69,14 @@ class EgoPlanner(AbstractEgoPlanner):
 
         """
         Predict for current vehicle
+        预测当前车辆
         """
         next_lane = roadgraph.get_available_next_lane(
             current_lane.id, ego_veh.available_lanes)
         lanes = [current_lane, next_lane] if next_lane != None else [
             current_lane]
 
+        # 如果当前车辆行为是保持车道
         if ego_veh.behaviour == Behaviour.KL:
             if isinstance(current_lane, NormalLane) and next_lane != None and isinstance(next_lane, JunctionLane) and (next_lane.currTlState == "R" or next_lane.currTlState == "r"):
                 # Stop
@@ -86,6 +93,9 @@ class EgoPlanner(AbstractEgoPlanner):
                     path = traj_generator.stop_trajectory_generator(
                         ego_veh, lanes, obs_list, roadgraph, config, T,
                     )
+
+        # 如果当前车辆行为是停止
+        # 5.26 finding：车辆状态为停止时，生成停止轨迹
         elif ego_veh.behaviour == Behaviour.STOP:
             # Stopping
             path = traj_generator.stop_trajectory_generator(

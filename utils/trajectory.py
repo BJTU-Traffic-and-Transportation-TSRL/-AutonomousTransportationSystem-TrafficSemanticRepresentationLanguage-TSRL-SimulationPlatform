@@ -85,7 +85,7 @@ class RecCollide:
 
 
 @dataclass
-class CertesianState:
+class CertesianState: # 笛卡尔坐标系下的状态
     t: float = 1.0
     x: float = 0.0
     y: float = 0.0
@@ -93,10 +93,10 @@ class CertesianState:
     cur: float = 0.0
     vel: float = 0.0
     acc: float = 0.0
-
+    stop_flag: bool = False # 6.16:笛卡尔停车标记  
 
 @dataclass
-class FrenetState:
+class FrenetState: #  frenet坐标系下的状态
     laneID: str = None  # lane ID
     t: float = 2.0
     s: float = 0.0  # lane pos
@@ -108,6 +108,7 @@ class FrenetState:
     d_d: float = 0.0
     d_dd: float = 0.0
     d_ddd: float = 0.0
+    stop_flag: bool = False # 6.16:Frenet停车标记 
 
 
 @dataclass
@@ -173,10 +174,10 @@ class Trajectory:
     def pop_last_state(self) -> tuple:
         """
         return the last state of the trajectory:
-        x, y, yaw, vel, acc, laneID, lanPos
+        x, y, yaw, vel, acc, laneID, lanPos, stop_flag
         """
         last_state = self.states.pop(0)
-        return last_state.x, last_state.y, last_state.yaw, last_state.vel, last_state.acc
+        return last_state.x, last_state.y, last_state.yaw, last_state.vel, last_state.acc, last_state.stop_flag
 
     def pop_last_state_r(self) -> tuple:
         """

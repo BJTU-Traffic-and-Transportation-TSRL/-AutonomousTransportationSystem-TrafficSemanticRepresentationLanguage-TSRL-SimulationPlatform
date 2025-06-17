@@ -1,6 +1,7 @@
 """
 This module contains the Vehicle class and related functions for managing vehicles in a traffic simulation.
-
+翻译：
+这个模块包含Vehicle类和相关函数，用于管理交通模拟中的车辆。
 Classes:
     Behaviour (IntEnum): Enum class for vehicle behavior.
     Vehicle: Represents a vehicle in the simulation.
@@ -16,6 +17,7 @@ Functions:
 from copy import copy, deepcopy
 from enum import IntEnum, Enum
 from typing import Any, Dict, Set, Tuple
+from collections import deque
 
 from trafficManager.common.coord_conversion import cartesian_to_frenet2D
 from utils.roadgraph import AbstractLane, JunctionLane, NormalLane, RoadGraph
@@ -45,7 +47,6 @@ class VehicleType(str, Enum):
 
 
 class Vehicle:
-
     def __init__(self,
                  vehicle_id: int,
                  init_state: State = State(),
@@ -58,7 +59,10 @@ class Vehicle:
                  max_accel: float = 3.0,
                  max_decel: float = -3.0,
                  max_speed: float = 50.0,
-                 available_lanes: Dict[int, Any] = {}) -> None:
+                 available_lanes: Dict[int, Any] = {},
+                 stop_lane: list[str] = None,
+                 stop_pos: deque = deque(maxlen=100),
+                 stop_until: deque = deque(maxlen=100)) -> None:
         """
         Initialize a Vehicle instance.
 
@@ -88,6 +92,9 @@ class Vehicle:
         self.max_decel = max_decel
         self.max_speed = max_speed
         self.available_lanes = available_lanes
+        self.stop_lane = stop_lane
+        self.stop_pos = stop_pos
+        self.stop_until = stop_until
 
     @property
     def current_state(self) -> State:
@@ -108,9 +115,10 @@ class Vehicle:
             state (State): The new state of the vehicle.
         """
         self._current_state = state
-
+    
+    # 获取车辆在车道上的状态
     def get_state_in_lane(self, lane) -> State:
-        course_spline = lane.course_spline
+        course_spline = lane.course_spline # 获得车道曲线
 
         rs = course_spline.find_nearest_rs(self.current_state.x,
                                            self.current_state.y)
@@ -127,15 +135,28 @@ class Vehicle:
                      yaw=self.current_state.yaw,
                      vel=self.current_state.vel,
                      acc=self.current_state.acc)
-
+    
+    # 车道变换
     def change_to_lane(self, lane: AbstractLane) -> None:
         """
         Change the vehicle to the next lane.
+        中文翻译：
+        将车辆变换到下一个车道（lane）。
         """
-        self.lane_id = lane.id
-        self.current_state = self.get_state_in_lane(lane)
-        self.behaviour = Behaviour.KL
+        self.lane_id = lane.id # 更新车辆车道ID
+        self.current_state = self.get_state_in_lane(lane) # 更新车辆状态
+        self.behaviour = Behaviour.KL # 更新车辆行为
 
+    # 5.26 添加车辆紧急停止
+    # def stop_vehicle(self, lane: AbstractLane) -> None:
+    #     """
+    #     5.26 添加：车辆紧急停止方法（状态改变函数）
+    #     """
+    #     self.lane_id = lane.id # 更新车辆车道ID
+    #     self.current_state = self.get_state_in_lane(lane) # 更新车辆状态
+    #     self.behaviour = Behaviour.STOP # 更新车辆行为
+
+    # 获取车辆字符串表示
     def __repr__(self) -> str:
         """
         Get the string representation of the vehicle.

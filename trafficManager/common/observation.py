@@ -3,6 +3,9 @@ A module for managing observations in a traffic simulation environment.
 
 This module contains the Observation class, which represents an observation of the traffic environment.
 It includes information about vehicles, their historical state trajectories, and obstacles in the environment.
+翻译：
+这个模块包含Observation类，它表示交通环境的观察。
+它包括关于车辆、它们的过去状态轨迹和环境中障碍物的信息。
 """
 from typing import List, Dict
 from vehicle import Vehicle

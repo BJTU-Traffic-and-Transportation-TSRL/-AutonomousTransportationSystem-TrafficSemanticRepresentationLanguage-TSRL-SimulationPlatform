@@ -16,39 +16,39 @@ from utils.trajectory import Trajectory
 from utils.roadgraph import NormalLane, JunctionLane
 
 
-class Vehicle:
+class Vehicle:# 定义车辆类别
     def __init__(self, id: str) -> None:
         self.id = id
         # store the last 10[s] x position for scenario rebuild
         # x, y: position(two doubles) of the named vehicle (center) within the last step
-        self.xQ = deque(maxlen=100)
-        self.yQ = deque(maxlen=100)
-        self.yawQ = deque(maxlen=100)
-        self.speedQ = deque(maxlen=100)
-        self.accelQ = deque(maxlen=100)
-        self.laneIDQ = deque(maxlen=100)
+        self.xQ = deque(maxlen=100) # 存储车辆x坐标
+        self.yQ = deque(maxlen=100) # 存储车辆y坐标
+        self.yawQ = deque(maxlen=100) # 存储车辆航向角
+        self.speedQ = deque(maxlen=100) # 存储车辆速度
+        self.accelQ = deque(maxlen=100) # 存储车辆加速度
+        self.laneIDQ = deque(maxlen=100) # 存储车辆车道ID
         # lanePos: The position of the vehicle along the lane (the distance
         # from the center of the car to the start of the lane in [m])
-        self.lanePosQ = deque(maxlen=100)
-        self.routeIdxQ = deque(maxlen=100)
-        self.routes: list[str] = None
-        self.LLRSet: set[str] = None
-        self.LLRDict: dict[str, dict[str, set[str]]] = None
-        self.LCRDict: dict[str, str] = None
-        self.length: float = 5.0   # SUMO default value
-        self.width: float = 1.8   # SUMO default value
-        self.maxAccel: float = 3.0   # SUMO default value
-        self.maxDecel: float = 4.5   # SUMO default value
-        self.maxSpeed: float = 13.89
-        self.vTypeID: str = None
-        self._iscontroled: bool = 0
-        # the follow three parameters are used to obtain available lanes
-        self.lookForward: float = 100
-        self.noChange: float = 5.0
-        self.plannedTrajectory: Trajectory = None
-        self.dbTrajectory: Trajectory = None
+        self.lanePosQ = deque(maxlen=100) # 存储车辆车道位置
+        self.routeIdxQ = deque(maxlen=100) # 存储车辆路径索引
+        self.routes: list[str] = None # 存储车辆路径
+        self.LLRSet: set[str] = None # 存储车辆车道集合
+        self.LLRDict: dict[str, dict[str, set[str]]] = None # 存储车辆车道字典
+        self.LCRDict: dict[str, str] = None # 存储车辆车道对应路径索引
+        self.length: float = 5.0   # SUMO默认值，车辆长度
+        self.width: float = 1.8   # SUMO默认值，车辆宽度
+        self.maxAccel: float = 3.0   # SUMO默认值，车辆最大加速度
+        self.maxDecel: float = 8.0  # SUMO默认值，车辆最大减速度
+        self.maxSpeed: float = 13.89 # SUMO默认值，车辆最大速度
+        self.vTypeID: str = None # 存储车辆类型ID
+        self._iscontroled: bool = 0 # 存储车辆是否受控
+        self.lookForward: float = 100 # 存储车辆前瞻距离
+        self.noChange: float = 5.0 # 存储车辆不换道距离
+        self.plannedTrajectory: Trajectory = None # 存储车辆计划轨迹
+        self.dbTrajectory: Trajectory = None # 存储车辆数据库轨迹
 
     # LLR: lane-level route
+    # 获取车道级别路径
     def getLaneLevelRoute(self, nb: NetworkBuild) -> tuple[set, dict]:
         LLRSet: set[str] = set()
         LLRDict: dict[str, dict[str, set[str]]] = {}
@@ -99,7 +99,7 @@ class Vehicle:
         return self._iscontroled
 
     @property
-    def yaw(self):
+    def yaw(self): 
         if self.yawQ:
             return self.yawQ[-1]
         else:
@@ -183,7 +183,7 @@ class Vehicle:
                 return 'Destination edge'
         else:
             return self.routes[currIdx]
-
+    # 判断车辆是否到达目的地：输出是或否
     def arriveDestination(self, nb: NetworkBuild | Rebuild) -> bool:
         nextEdge = self.nextEdgeID
         if nextEdge == 'Destination edge':
@@ -197,7 +197,7 @@ class Vehicle:
                 return False
         else:
             return False
-
+    # 获取车辆可用车道：输出车道集合
     def availableLanes(self, nb: NetworkBuild):
         if ':' in self.laneID:
             if self.nextEdgeID == 'Destination edge':
@@ -231,9 +231,11 @@ class Vehicle:
 
     # entry control mode and control vehicles
     # used for real-time simulation mode.
+    # 进入控制模式并控制车辆
+    # 用于实时仿真模式
     def controlSelf(
         self, centerx: float, centery: float,
-        yaw: float, speed: float, accel: float
+        yaw: float, speed: float, accel: float,stop_flag: bool
     ):
         x = centerx + (self.length / 2) * cos(yaw)
         y = centery + (self.length / 2) * sin(yaw)
@@ -243,15 +245,18 @@ class Vehicle:
             traci.vehicle.moveToXY(self.id, '', -1, x, y,
                                    angle=angle, keepRoute=2)
             traci.vehicle.setSpeed(self.id, speed)
-            if accel >= 0:
+            if accel >= 0: # 如果车辆加速度大于等于0
                 traci.vehicle.setAccel(self.id, accel)
                 traci.vehicle.setDecel(self.id, self.maxDecel)
             else:
                 traci.vehicle.setAccel(self.id, self.maxAccel)
                 traci.vehicle.setDecel(self.id, -accel)
-        else:
-            traci.vehicle.setLaneChangeMode(self.id, 0)
-            traci.vehicle.setSpeedMode(self.id, 0)
+            # 6.16:假设存在一个停车标记属性 stop_flag 用于判断是否停车
+            if stop_flag:
+                traci.vehicle.setStop(self.id, self.laneID, self.lanePos)
+            else:
+                traci.vehicle.setLaneChangeMode(self.id, 0)
+                traci.vehicle.setSpeedMode(self.id, 0)
             traci.vehicle.moveToXY(self.id, '', -1, x, y,
                                    angle=angle, keepRoute=2)
             traci.vehicle.setSpeed(self.id, speed)
@@ -264,6 +269,7 @@ class Vehicle:
             self._iscontroled = 1
 
     # exit control mode and set self.iscontroled = 0
+    # 退出控制模式并设置self.iscontroled = 0
     def exitControlMode(self):
         if self._iscontroled:
             try:
@@ -274,9 +280,11 @@ class Vehicle:
                 pass
             self._iscontroled = 0
 
+    # 重放更新
     def replayUpdate(self):
         # if plannedTrajectory and dbTrajectory are both empty, return 'Failure',
         # else, return 'Success'.
+        # 如果plannedTrajectory和dbTrajectory都为空，返回'Failure'，否则返回'Success'
         if self.plannedTrajectory and self.plannedTrajectory.xQueue:
             x, y, yaw, speed, accel, laneID, lanePos, _ = \
                 self.plannedTrajectory.pop_last_state_r()
@@ -303,32 +311,42 @@ class Vehicle:
                 self.routeIdxQ.append(routeIdx)
         return 'Success'
 
+    # 导出车辆信息to字典
     def export2Dict(self, nb: NetworkBuild | Rebuild) -> dict:
+        # 5.21：需要加上停车信息！！
         return {
             'id': self.id, 'vTypeID': self.vTypeID,
             'xQ': self.xQ, 'yQ': self.yQ, 'yawQ': self.yawQ,
             'speedQ': self.speedQ, 'accelQ': self.accelQ,
             'laneIDQ': self.laneIDQ, 'lanePosQ': self.lanePosQ,
             'availableLanes': self.availableLanes(nb),
-            'routeIdxQ': self.routeIdxQ
+            # 'stop_lane': self.stop_lane,
+            # 'stop_pos': self.stop_pos,
+            # 'stop_until': self.stop_until
+
         }
 
+    # 绘制车辆
     def plotSelf(self, vtag: str, node: dpg.node, ex: float, ey: float, ctf: CoordTF):
         if not self.xQ:
             raise TypeError('Please call Model.updateVeh() at first.')
+        # 旋转矩阵
         rotateMat = np.array(
             [
                 [cos(self.yaw), -sin(self.yaw)],
                 [sin(self.yaw), cos(self.yaw)]
             ]
         )
+        # 车辆顶点
         vertexes = [
             np.array([[self.length/2], [self.width/2]]),
             np.array([[self.length/2], [-self.width/2]]),
             np.array([[-self.length/2], [-self.width/2]]),
             np.array([[-self.length/2], [self.width/2]])
         ]
+        # 旋转顶点
         rotVertexes = [np.dot(rotateMat, vex) for vex in vertexes]
+        # 相对顶点
         relativeVex = [[self.x+rv[0]-ex, self.y+rv[1]-ey]
                        for rv in rotVertexes]
         drawVex = [
@@ -352,8 +370,10 @@ class Vehicle:
             parent=node
         )
 
+    # 绘制轨迹
     def plotTrajectory(self, node: dpg.node, ex: float, ey: float, ctf: CoordTF):
         if self.plannedTrajectory and self.plannedTrajectory.xQueue:
+            # 生成轨迹点
             tps = [
                 ctf.dpgCoord(
                     self.plannedTrajectory.xQueue[i],
@@ -361,9 +381,11 @@ class Vehicle:
                     ex, ey
                 ) for i in range(len(self.plannedTrajectory.xQueue))
             ]
+            # 绘制计划轨迹
             dpg.draw_polyline(tps, color=(205, 132, 241),
                               parent=node, thickness=2)
 
+    # 绘制实际轨迹
     def plotDBTrajectory(self, node: dpg.node, ex: float, ey: float, ctf: CoordTF):
         if self.dbTrajectory and self.dbTrajectory.xQueue:
             tps = [
@@ -377,10 +399,11 @@ class Vehicle:
                               parent=node, thickness=2)
 
     # append yaw of the car
+    # 添加车辆偏航角
     def yawAppend(self, angle: float):
         self.yawQ.append((90 - angle) * (pi / 180))
 
-    # append the center x
+    # 添加车辆中心x坐标
     def xAppend(self, x: float):
         self.xQ.append(x - self.length / 2 * cos(self.yaw))
 
@@ -394,6 +417,11 @@ class Vehicle:
 
     def laneAppend(self, nb: NetworkBuild):
         traciLaneID = traci.vehicle.getLaneID(self.id)
+        # 车道空值检查
+        if traciLaneID == '':
+            print(f"车辆{self.id}进入无效区域，准备移除")
+            traci.vehicle.remove(self.id)
+            return
         traciLanePos = traci.vehicle.getLanePosition(self.id)
         routeIndex = self.routeIdxQ[-1]
         if routeIndex >= 1:
@@ -441,6 +469,32 @@ class Vehicle:
         else:
             self.routeIdxQ.append(traci.vehicle.getRouteIndex(self.id))
 
+    """
+    # 5.21 添加车辆停车信息存储方法
+    # """
+    # # 车辆的停车信息获取-方法
+    # def getStopInfo(self,id):
+    #     # 获取特定id车辆的停止行为
+    #     stops = traci.vehicle.getStops(id)
+    #     if stops:
+    #         for stop in stops:
+    #             lane = stop.lane
+    #             end_pos = stop.endPos
+    #             until = stop.until
+    #             self.stop_lane.append(lane) 
+    #             self.stop_pos.append(end_pos)
+    #             self.stop_until.append(until)
+
+    # # 存储车辆停车车道
+    # def stopLaneAppend(self, laneID: str):
+    #     self.stop_lane.append(laneID)
+    # # 存储车辆停车位置
+    # def stopPosAppend(self, pos: float):
+    #     self.stop_pos.append(pos)
+    # # 存储车辆停车截止时间
+    # def stopUntilAppend(self, until: float):
+    #     self.stop_until.append(until)
+
     def __hash__(self) -> int:
         return hash(self.id)
 
@@ -456,7 +510,7 @@ class Vehicle:
             self.yaw, self.speed, self.accel, self.vTypeID
         )
 
-
+# 定义Ego Car类
 class egoCar(Vehicle):
     def __init__(
         self, id: str, deArea: float = 50, sceMargin: float = 20

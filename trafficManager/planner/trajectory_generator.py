@@ -25,7 +25,7 @@ import logger
 
 logging = logger.get_logger(__name__)
 
-
+# 检查路径
 def check_path(vehicle, path):
     for state in path.states:
         if state.vel > vehicle.max_speed:  # Max speed check
@@ -44,7 +44,7 @@ def check_path(vehicle, path):
     else:
         return True
 
-
+# 车道变换轨迹生成器
 def lanechange_trajectory_generator(
     vehicle: Vehicle,
     target_lane: AbstractLane,
@@ -124,7 +124,7 @@ def lanechange_trajectory_generator(
                       cost.stop(config["weights"]))
     return stop_path
 
-
+# 停止轨迹生成器
 def stop_trajectory_generator(vehicle: Vehicle,
                               lanes: List[AbstractLane],
                               obs_list: List[Obstacle],
@@ -132,15 +132,23 @@ def stop_trajectory_generator(vehicle: Vehicle,
                               config,
                               T,
                               redLight: bool = False) -> Trajectory:
-    current_lane = lanes[0]
-    course_spline = current_lane.course_spline
-    current_state = vehicle.current_state
-    course_t = config["MIN_T"]  # Sample course time
-    dt = config["DT"]
-    max_acc = vehicle.max_accel
-    car_length = vehicle.length
+    current_lane = lanes[0] # 当前车道
+    course_spline = current_lane.course_spline # 当前车道曲线
+    current_state = vehicle.current_state # 当前车辆状态
+    course_t = config["MIN_T"]  # 采样时间
+    dt = config["DT"] # 时间步长
+    max_acc = vehicle.max_accel # 最大加速度
+    car_length = vehicle.length # 车辆长度
     
     # Step 1: find the right stopping position
+    # 计算车辆停止位置
+    """
+    current_state.s：车辆当前的纵向位置（即车辆在车道上的当前位置）。
+    course_spline.s[-1]：当前车道曲线的终点位置（即车道的总长度）。
+    current_state.s_d：车辆当前的纵向速度（即车辆沿车道方向的速度）。
+    course_t：采样时间（即规划轨迹的时间范围）。
+    car_length：车辆的长度。
+    """
     s = np.linspace(
         current_state.s,
         min(
@@ -148,13 +156,15 @@ def stop_trajectory_generator(vehicle: Vehicle,
             current_state.s + current_state.s_d * course_t + 3 * car_length,
         ),
         100,
-    )
+    ) # 一维数组，生成100个等间距的纵向位置
+    # 如果红灯，则最小停止位置为车道终点前5米
     if redLight:
         min_s = s[-1] - 5
     else:
-        min_s = s[-1] + 100
+        min_s = s[-1] + 100 # 绿灯时，最小停止位置为车道终点后100米
+    # 遍历所有障碍物
     for obs in obs_list:
-        if obs.type == ObsType.OTHER:
+        if obs.type == ObsType.OTHER: # 如果属于其他障碍物
             obs_s, obs_d = course_spline.cartesian_to_frenet1D(
                 obs.current_state.x, obs.current_state.y)
             if obs_s == s[0] or obs_s == s[-1]:
@@ -162,7 +172,7 @@ def stop_trajectory_generator(vehicle: Vehicle,
             obs_near_d = max(0, abs(obs_d) - obs.shape.width / 2)
             if obs_near_d < current_lane.width / 2:
                 min_s = min(min_s, obs_s - obs.shape.length / 2 - car_length)
-        elif obs.type == ObsType.PEDESTRIAN:
+        elif obs.type == ObsType.PEDESTRIAN: # 如果属于行人
             obs_s, obs_d = course_spline.cartesian_to_frenet1D(
                 obs.current_state.x, obs.current_state.y)
             if obs_s == s[0] or obs_s == s[-1]:
@@ -170,7 +180,7 @@ def stop_trajectory_generator(vehicle: Vehicle,
             obs_near_d = max(0, abs(obs_d) - obs.shape.width / 2)
             if obs_near_d < current_lane.width / 1.5:
                 min_s = min(min_s, obs_s - obs.shape.length / 2 - car_length)
-        elif obs.type == ObsType.CAR:
+        elif obs.type == ObsType.CAR: # 如果属于车辆
             if isinstance(current_lane, JunctionLane):
                 # check if in same junction
                 veh_junction_id = vehicle.lane_id.split("_")[0]
@@ -204,7 +214,7 @@ def stop_trajectory_generator(vehicle: Vehicle,
                     obs_near_d = max(0, abs(obs_d) - obs.shape.width / 2)
                     if obs_near_d < current_lane.width / 2:
                         min_s = min(min_s, obs_s - obs.shape.length - car_length)
-            else:  # in normal lane
+            else:  # in normal lane 如果属于普通车道
                 if isinstance(roadgraph.get_lane_by_id(obs.lane_id),NormalLane):
                     edge_1 = current_lane.affiliated_edge
                     edge_2 = roadgraph.get_lane_by_id(obs.lane_id).affiliated_edge

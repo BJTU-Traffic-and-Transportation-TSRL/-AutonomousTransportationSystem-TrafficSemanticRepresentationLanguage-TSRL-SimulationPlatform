@@ -3,6 +3,8 @@ Author: Licheng Wen
 Date: 2022-06-14 14:06:50
 Description: 
 Frenet optimal trajectory generator
+中文翻译：
+Frenet最优轨迹生成器(一种轨迹生成优化算法)
 
 Ref:
 - [Optimal Trajectory Generation for Dynamic Street Scenarios in a Frenet Frame]
@@ -22,7 +24,7 @@ from utils.trajectory import Trajectory, State
 from utils.cubic_spline import Spline2D
 from trafficManager.planner.frenet_optimal_planner.polynomial_curve import QuarticPolynomial, QuinticPolynomial
 
-
+# 计算特定路径
 def calc_spec_path(current_state, target_state, T, dt):
     lat_qp = QuinticPolynomial(
         current_state.d,
@@ -58,11 +60,11 @@ def calc_spec_path(current_state, target_state, T, dt):
             ))
     return fp
 
-
+# 计算停止路径
 def calc_stop_path(current_state, decel, T, dt, config):
     stop_path = Trajectory()
     t = 0
-    s = current_state.s
+    s = current_state.s 
     d = current_state.d
     s_d = current_state.s_d
     d_d = current_state.d_d

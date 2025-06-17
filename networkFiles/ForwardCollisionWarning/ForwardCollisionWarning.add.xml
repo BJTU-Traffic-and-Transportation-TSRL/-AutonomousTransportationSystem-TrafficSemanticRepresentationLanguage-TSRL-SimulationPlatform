@@ -1,0 +1,4 @@
+<?xml version='1.0' encoding='utf-8'?>
+<additional>
+    <parkingArea id="parkArea" lane="laneID" startPos="startPos" endPos="endPos" roadsideCapacity="1" width="width" length="length" angle="angle"/>
+</additional>

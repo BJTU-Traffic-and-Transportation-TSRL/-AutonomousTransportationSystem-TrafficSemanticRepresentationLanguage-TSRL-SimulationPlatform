@@ -2,7 +2,8 @@ import dearpygui.dearpygui as dpg
 from utils.simBase import CoordTF
 from typing import Tuple
 
-
+# 窗口创建
+# 目标：找到车辆位置更新的函数，并且让这个函数能够在阅读到车辆停止的信息后，将模拟的车辆停下
 class GUI:
     '''
         mode: type of simulation, available mode: `real-time-ego`, `real-time-local`,
@@ -28,7 +29,7 @@ class GUI:
         self.create_handlers()
         self.resize_windows()
 
-        self.ctf = CoordTF(120, 'MainWindow')
+        self.ctf = CoordTF(120, 'MainWindow') # 创建坐标转换器
 
     def setup(self):
         dpg.create_context()

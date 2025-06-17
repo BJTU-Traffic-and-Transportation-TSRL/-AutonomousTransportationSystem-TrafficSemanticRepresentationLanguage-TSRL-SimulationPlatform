@@ -3,7 +3,7 @@ from trafficManager.traffic_manager import TrafficManager
 
 import logger
 
-log = logger.setup_app_level_logger(file_name="app_debug.log")
+log = logger.setup_app_level_logger(file_name="app_debug_example.log")
 
 
 file_paths = {
@@ -13,11 +13,11 @@ file_paths = {
     ),
     "CarlaTown01": (
         "networkFiles/CarlaTown01/Town01.net.xml",
-        "networkFiles/CarlaTown01/carlavtypes.rou.xml,networkFiles/CarlaTown01/Town01.rou.xml",
+        "networkFiles/CarlaTown01/carlavtypes.rou.xml,networkFiles/CarlaTown01/Town01.rou.xml"
     ),
     "CarlaTown05": (
         "networkFiles/CarlaTown05/Town05.net.xml",
-        "networkFiles/CarlaTown05/carlavtypes.rou.xml,networkFiles/CarlaTown05/Town05.rou.xml",
+        "networkFiles/CarlaTown05/carlavtypes.rou.xml,networkFiles/CarlaTown05/Town05.rou.xml"
     ),
     "bigInter": (
         "networkFiles/bigInter/bigInter.net.xml",
@@ -49,8 +49,8 @@ def run_model(
     net_file,
     rou_file,
     ego_veh_id="61",
-    data_base="egoTrackingTest.db",
-    SUMOGUI=0,
+    data_base="egoTrackingTest.db",#???这是啥
+    SUMOGUI="D:\sumo-win64-1.15.0\sumo-1.15.0\bin\sumo-gui.exe",
     sim_note="example simulation, LimSim-v-0.2.0.",
     carla_cosim=False,
 ):
@@ -84,4 +84,4 @@ def run_model(
 
 if __name__ == "__main__":
     net_file, rou_file = file_paths['CarlaTown05']
-    run_model(net_file, rou_file, ego_veh_id="30", carla_cosim=False)
+    run_model(net_file, rou_file, ego_veh_id="61", carla_cosim=False)

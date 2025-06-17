@@ -92,13 +92,13 @@ class MovingScene:
     # getSurroundVeh will update all vehicle's attributes
     # so don't update again in other steps
     def updateSurroudVeh(self):
-        nextStepVehicles = set()
-        for ed in self.edges:
+        nextStepVehicles = set() # 下一个时间步的车辆集合
+        for ed in self.edges: # 遍历所有的边
             nextStepVehicles = nextStepVehicles | set(
-                traci.edge.getLastStepVehicleIDs(ed)
-            )
+                traci.edge.getLastStepVehicleIDs(ed) 
+            ) # 获取该边上的所有车辆id，并入下一个时间步的车辆集合
 
-        for jc in self.junctions:
+        for jc in self.junctions: # 遍历所有的路口
             jinfo = self.netInfo.getJunction(jc)
             if jinfo.JunctionLanes:
                 for il in jinfo.JunctionLanes:
@@ -106,24 +106,24 @@ class MovingScene:
                         traci.lane.getLastStepVehicleIDs(il)
                     )
 
-        newVehicles = nextStepVehicles - self.currVehicles.keys()
+        newVehicles = nextStepVehicles - self.currVehicles.keys() # 新加入场景的车辆集合：当前帧有但是上一帧没有的车辆
         for nv in newVehicles:
             self.addVeh(self.currVehicles, nv)
 
-        ex, ey = traci.vehicle.getPosition(self.ego.id)
-        vehInAoI = {}
-        outOfAoI = {}
-        outOfRange = set()
-        for vk, vv in self.currVehicles.items():
+        ex, ey = traci.vehicle.getPosition(self.ego.id) # 获取ego主车的位置
+        vehInAoI = {} # 当前帧在aoi内的车辆集合
+        outOfAoI = {} # 当前帧不在aoi内的车辆集合
+        outOfRange = set() # 当前帧超出监控范围的车辆集合
+        for vk, vv in self.currVehicles.items(): #vk: 车辆id, vv: 车辆实例
             if vk == self.ego.id:
                 continue
             try:
-                x, y = traci.vehicle.getPosition(vk)
-            except TraCIException:
+                x, y = traci.vehicle.getPosition(vk) # 获取周围车辆的位置
+            except TraCIException: # 捕获异常，说明车辆已经离开网络
                 # vehicle is leaving the network.
                 outOfRange.add((vk, 0))
                 continue
-            if sqrt(pow((ex - x), 2) + pow((ey - y), 2)) <= self.ego.deArea:
+            if sqrt(pow((ex - x), 2) + pow((ey - y), 2)) <= self.ego.deArea: # 如果某周围车辆在ego主车的aoi内
                 try:
                     vehArrive = vv.arriveDestination(self.netInfo)
                 except:
@@ -159,12 +159,15 @@ class MovingScene:
         self.vehINAoI = vehInAoI
         self.outOfAoI = outOfAoI
 
+    # 绘制场景
     def plotScene(self, node: dpg.node, ex: float, ey: float, ctf: CoordTF):
         if self.edges:
+            # 绘制道路
             for ed in self.edges:
                 self.netInfo.plotEdge(ed, node, ex, ey, ctf)
 
         if self.junctions:
+            # 绘制路口
             for jc in self.junctions:
                 self.netInfo.plotJunction(jc, node, ex, ey, ctf)
 
@@ -179,15 +182,16 @@ class MovingScene:
 
         for junc in self.junctions:
             Junction = self.netInfo.getJunction(junc)
+
             for jl in Junction.JunctionLanes:
                 juncLane = self.netInfo.getJunctionLane(jl)
                 roadgraph.junction_lanes[juncLane.id] = juncLane
 
         # export vehicles' information using dict.
         vehicles = {
-            'egoCar': self.ego.export2Dict(self.netInfo),
-            'carInAoI': [av.export2Dict(self.netInfo) for av in self.vehINAoI.values()],
-            'outOfAoI': [sv.export2Dict(self.netInfo) for sv in self.outOfAoI.values()]
+            'egoCar': self.ego.export2Dict(self.netInfo), #自车
+            'carInAoI': [av.export2Dict(self.netInfo) for av in self.vehINAoI.values()] ,# AOI内的车
+            'outOfAoI': [sv.export2Dict(self.netInfo) for sv in self.outOfAoI.values()] # AOI外的车
         }
 
         return roadgraph, vehicles
