@@ -93,7 +93,13 @@ class Model:
 
         self.allvTypes = None
 
-        self.gui = GUI('real-time-ego')
+        try:
+            self.gui = GUI('real-time-ego')
+        except Exception as e:
+            # 记录GUI初始化错误
+            import logging
+            logging.error(f"GUI初始化失败: {str(e)}", exc_info=True)
+            raise  # 重新抛出异常以便上层处理
 
         self.evaluation = RealTimeEvaluation(dt=0.1)
 
@@ -284,7 +290,7 @@ class Model:
 
         return allvTypesID
 
-    # 启动模拟
+    # 启动SUMO模拟
     def start(self):
         if self.carla_cosim: # 如果需要Carla协同仿真
             num_clients = "2" # 设置客户端数量为2
@@ -389,11 +395,11 @@ class Model:
     # 绘制场景
     def drawScene(self):
         ex, ey = self.ego.x, self.ego.y
-        node = dpg.add_draw_node(parent="Canvas")
-        self.ms.plotScene(node, ex, ey, self.gui.ctf) # 绘制场景
-        self.ego.plotSelf('ego', node, ex, ey, self.gui.ctf) # 绘制自车
-        self.ego.plotdeArea(node, ex, ey, self.gui.ctf) # 绘制自车检测区域
-        self.ego.plotTrajectory(node, ex, ey, self.gui.ctf) # 绘制自车轨迹
+        node = dpg.add_draw_node(parent="Canvas") # 创建Canvas的子图节点node，用于组织所有场景绘图
+        self.ms.plotScene(node, ex, ey, self.gui.ctf) # 绘制道路背景与静态元素
+        self.ego.plotSelf('ego', node, ex, ey, self.gui.ctf) # 绘制自车模型（矩形+方向箭头）
+        self.ego.plotdeArea(node, ex, ey, self.gui.ctf) # 绘制自车检测区域（蓝色半透明圆形）
+        self.ego.plotTrajectory(node, ex, ey, self.gui.ctf) # 绘制自车轨迹（黄色线条）
         self.putFrameInfo(self.ego.id, 'ego', self.ego) # 将自车信息插入数据库
         if self.ms.vehINAoI: # 绘制在自车检测区域内的车辆
             for v1 in self.ms.vehINAoI.values():
@@ -405,16 +411,18 @@ class Model:
                 v2.plotSelf('outOfAoI', node, ex, ey, self.gui.ctf)
                 v2.plotTrajectory(node, ex, ey, self.gui.ctf)
                 self.putFrameInfo(v2.id, 'outOfAoI', v2)
-
-        mvNode = dpg.add_draw_node(parent='movingScene') # 绘制移动场景
-        mvCenterx, mvCentery = self.mapCoordTF.dpgCoord(ex, ey) # 获取移动场景中心点
+        # 绘制宏观地图动态元素（movingScene节点）中的AOI-ego橙色半透明圆形
+        mvNode = dpg.add_draw_node(parent='movingScene') 
+        mvCenterx, mvCentery = self.mapCoordTF.dpgCoord(ex, ey) 
         dpg.draw_circle((mvCenterx, mvCentery),
                         self.ego.deArea * self.mapCoordTF.zoomScale,
                         thickness=0,
                         fill=(243, 156, 18, 60),
-                        parent=mvNode) # 绘制自车检测区域
+                        parent=mvNode) # 橙色半透明节点
 
-        infoNode = dpg.add_draw_node(parent='simInfo') # 绘制模拟信息
+        # 左下角的仿真信息文本（simInfo）
+        infoNode = dpg.add_draw_node(parent='simInfo') 
+        # 在infoNode节点上进行文本写作
         dpg.draw_text((5, 5),
                       'Real time simulation ego tracking.',
                       color=(75, 207, 250),
@@ -436,22 +444,29 @@ class Model:
                       size=20,
                       parent=infoNode)
 
-        radarNode = dpg.add_draw_node(parent='radarPlot') # 绘制雷达图
-
-        points = self.evaluation.output_result()
+        """
+        # 评估窗口雷达图（sEvaluation窗口）
+        points = self.evaluation.output_result() # 获取评估指标（偏移量、舒适度等）
         self.putEvaluationInfo(self.evaluation.result) # 将评估信息插入数据库
-
         transformed_points = self._evaluation_transform_coordinate(points,
-                                                                   scale=30)
-        transformed_points.append(transformed_points[0])
-
-        radarNode = dpg.add_draw_node(parent='radarPlot') # 绘制雷达图
+                                                                   scale=30) # 转换坐标，将评估指标转换为绘图坐标
+        transformed_points.append(transformed_points[0]) # 雷达图绘制需要闭合，添加第一个点以闭合图形
+        radarNode = dpg.add_draw_node(parent='radarPlot') # 创建雷达图，节点类别为radarNode，为已有节点类别radarPlot的子类
         dpg.draw_polygon(transformed_points,
-                         color=(75, 207, 250, 100),
-                         fill=(75, 207, 250, 100),
-                         thickness=5,
-                         parent=radarNode) # 绘制雷达图
-    # 评估信息坐标转换
+                         color=(75, 207, 250, 100), # 雷达图轮廓颜色
+                         fill=(75, 207, 250, 100), # 雷达图填充颜色
+                         thickness=5, # 雷达图轮廓宽度
+                         parent=radarNode) # 在radarNode上进行绘画
+        """
+        TSILNode = dpg.add_draw_node(parent='TSILs') 
+        dpg.draw_text((5, 5),
+            'test_TSIL_infomation',
+                color=(75, 207, 250),
+                size=20,
+                parent=TSILNode) # 绘制模拟信息
+    # 评估信息坐标转换，为了将评估数据的极坐标转换为GUI界面中窗口的屏幕坐标系统，以在
+    # 屏幕上进行图标绘制
+ 
     def _evaluation_transform_coordinate(self, points: List[float],
                                          scale: float) -> List[List[float]]:
         dpgHeight = dpg.get_item_height('sEvaluation') - 30
@@ -468,6 +483,7 @@ class Model:
             ])
 
         return transformed_points
+
     # 获取车辆类型信息
     def getvTypeIns(self, vtid: str) -> vehType:
         return self.allvTypes[vtid]
@@ -587,6 +603,7 @@ class Model:
         else:
             return None, None
 
+    # 在GUI的sEvaluation窗口绘制雷达背景框架图
     def drawRadarBG(self):
         bgNode = dpg.add_draw_node(parent='radarBackground')
         # eliminate the bias
@@ -643,7 +660,7 @@ class Model:
             self.nb.plotMapJunction(jid, mNode, self.mapCoordTF)
 
         self.gui.drawMainWindowWhiteBG((x1-100, y1-100), (x2+100, y2+100))
-
+    
     def render(self):
         self.gui.update_inertial_zoom() # 更新 inertial zoom
         self.getSce() # 更新场景
@@ -661,7 +678,7 @@ class Model:
         if self.ego.id in traci.vehicle.getIDList(): # 如果自车在场景中
             if not self.tpStart: # 如果模拟未开始
                 self.gui.start() # 启动dearpygui
-                self.drawRadarBG() # 绘制雷达背景   
+                # self.drawRadarBG() # 绘制雷达背景   
                 self.drawMapBG() # 绘制地图背景
                 self.tpStart = 1 # 设置模拟开始标志
             self.render() # 渲染场景

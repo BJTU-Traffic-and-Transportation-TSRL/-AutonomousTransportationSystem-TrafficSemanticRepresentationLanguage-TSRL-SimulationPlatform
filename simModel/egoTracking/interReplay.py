@@ -1,3 +1,7 @@
+"""
+    场景回放模型
+    用于回放场景
+"""
 from __future__ import annotations
 import dearpygui.dearpygui as dpg
 import sqlite3
@@ -419,7 +423,7 @@ class InterReplayModel:
                     afy = list(self.ego.dbTrajectory.accQueue)
                     afx = list(range(1, len(afy)+1))
                     dpg.set_value('a_series_tag_future', [afx, afy])
-
+    # 绘制
     def drawSce(self):
         node = dpg.add_draw_node(parent="Canvas")
         ex, ey = self.ego.x, self.ego.y
@@ -460,7 +464,7 @@ class InterReplayModel:
                         fill=(37, 204, 247, 200),
                         parent=mvNode)
 
-        infoNode = dpg.add_draw_node(parent='simInfo')
+        infoNode = dpg.add_draw_node(parent='simInfo') # 为simInfo添加子节点infoNode
         dpg.draw_text((5, 5),
                       f'Replay {self.dataBase}',
                       color=(75, 207, 250),
@@ -478,6 +482,12 @@ class InterReplayModel:
                       parent=infoNode)
         dpg.draw_text((5, 65),
                       'Lane position: %.5f' % self.ego.lanePos,
+                      color=(249, 202, 36),
+                      size=20,
+                      parent=infoNode)
+        # 尝试添加互操作语言文本
+        dpg.draw_text((5, 85),
+                      'test_text',
                       color=(249, 202, 36),
                       size=20,
                       parent=infoNode)

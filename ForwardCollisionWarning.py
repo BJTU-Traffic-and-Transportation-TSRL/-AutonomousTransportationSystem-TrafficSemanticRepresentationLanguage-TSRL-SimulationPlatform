@@ -28,8 +28,7 @@ def run_model(
     SUMOGUI="D:\sumo-win64-1.15.0\sumo-1.15.0\bin\sumo-gui.exe",
     sim_note="example simulation, LimSim-v-0.2.0.",
     carla_cosim=False,
-    max_sim_time=100, # 新增参数，单位秒
-    stop_veh_id='0'
+    max_sim_time=100 # 新增参数，单位秒
 ):
     try:
         model = Model(
@@ -92,7 +91,8 @@ if __name__ == "__main__":
         run_model(net_file, 
                 rou_file,
                 ego_veh_id="1",
-                carla_cosim=False
+                carla_cosim=False,
+                SUMOGUI=True
                 )
     except Exception as e:
         log.error(f"Main program error: {str(e)}")

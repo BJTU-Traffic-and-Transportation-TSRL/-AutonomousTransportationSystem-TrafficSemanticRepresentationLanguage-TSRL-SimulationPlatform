@@ -1,9 +1,11 @@
 import dearpygui.dearpygui as dpg
 from utils.simBase import CoordTF
 from typing import Tuple
+import os
 
-# 窗口创建
-# 目标：找到车辆位置更新的函数，并且让这个函数能够在阅读到车辆停止的信息后，将模拟的车辆停下
+"""
+GUI:负责所有窗口的初始化
+"""
 class GUI:
     '''
         mode: type of simulation, available mode: `real-time-ego`, `real-time-local`,
@@ -14,8 +16,8 @@ class GUI:
     '''
 
     def __init__(self, mode) -> None:
-        self.mode = mode
-        self.is_running = True
+        self.mode = mode # 接受模拟模式的实参
+        self.is_running = True # 是否处于运行状态
         self.replayDelay = 0
         self.frameIncre = 0
 
@@ -23,33 +25,41 @@ class GUI:
         self.is_dragging: bool = False
         self.old_offset = (0, 0)
 
-        self.setup()
-        self.setup_themes()
-        self.create_windows()
+        self.setup() # 初始化dearpygui上下文和视口
+        self.setup_themes() # 初始化全局主题和控件样式
+        self.create_windows() # 创建窗口
         self.create_handlers()
         self.resize_windows()
 
         self.ctf = CoordTF(120, 'MainWindow') # 创建坐标转换器
 
+    # 创建dearpygui上下文和视口，配置窗口基本属性
     def setup(self):
         dpg.create_context()
+        # 实时模拟-自车
         if self.mode == 'real-time-ego':
             dpg.create_viewport(title="TrafficSimulator",
                                 width=1670, height=760)
+        # 实时模拟-局部
         elif self.mode == 'real-time-local':
             dpg.create_viewport(title='TrafficSimulator',
                                 width=740, height=760)
+        # 回放-自车
         elif self.mode == 'replay-ego':
             dpg.create_viewport(title="TrafficSimulator",
                                 width=1670, height=870)
+        # 回放-局部
         elif self.mode == 'replay-local':
             dpg.create_viewport(title="TrafficSimulator",
                                 width=740, height=870)
         else:
             raise TypeError('Nonexistent gui mode!')
         dpg.setup_dearpygui()
+        dpg.show_viewport()  # 添加此行显示视口
 
+    # 配置全局主题和控件样式
     def setup_themes(self):
+        # 全局主题设置
         with dpg.theme() as global_theme:
             with dpg.theme_component(dpg.mvAll):
                 dpg.add_theme_style(
@@ -69,7 +79,7 @@ class GUI:
                 )
 
         dpg.bind_theme(global_theme)
-
+        # 回放模式按钮主题
         if self.mode == 'replay-ego' or self.mode == 'replay-local':
             with dpg.theme(tag="ResumeButtonTheme"):
                 with dpg.theme_component(dpg.mvButton):
@@ -86,7 +96,7 @@ class GUI:
                         dpg.mvThemeCol_ButtonHovered, (207, 12, 23))
                     dpg.add_theme_color(
                         dpg.mvThemeCol_ButtonActive, (120, 2, 10))
-
+        # Ego模式图表主题
         if self.mode == 'real-time-ego' or self.mode == 'replay-ego':
             with dpg.theme(tag="plot_theme_v"):
                 with dpg.theme_component(dpg.mvLineSeries):
@@ -134,13 +144,16 @@ class GUI:
                         category=dpg.mvThemeCat_Plots
                     )
 
+    # 创建主窗口以及子窗口（控制栏、车辆状态图表、评估面板等）
     def create_windows(self):
+        # 全局字体设置
         with dpg.font_registry():
-            default_font = dpg.add_font("simModel/common/fonts/Meslo.ttf", 18)
-
+            default_font = dpg.add_font("simModel/common/fonts/Meslo.ttf", 18) # 全局字体设置
+        # 主窗口字体设置
         dpg.bind_font(default_font)
-
+        # 回放模式窗口创建
         if self.mode == 'replay-ego' or self.mode == 'replay-local':
+            # 1. 通用控制窗口
             with dpg.window(
                 tag='ControlWindow',
                 label='Menu',
@@ -148,17 +161,19 @@ class GUI:
                 # no_collapse=True,
                 # no_resize=True
             ):
+                # 1.1 回放控制按钮
                 with dpg.group(horizontal=True):
+                    # 回放暂停按钮
                     dpg.add_button(
                         label="Pause", tag="PauseResumeButton",
                         callback=self.toggle
                     )
-
+                    # 回放单步执行下一帧
                     dpg.add_button(label="Next frame",
                                     callback=self.nextFrame)
                 
-                dpg.add_spacer(height=5)
-
+                dpg.add_spacer(height=5) # 添加按钮组下方组距
+                # 1.2 时间延迟输入框
                 with dpg.group(horizontal=True):
                     dpg.add_text('Time delay: ')
                     dpg.add_slider_float(
@@ -167,8 +182,8 @@ class GUI:
                         default_value=0, callback=self.setDelay
                     )
 
-            dpg.bind_item_theme('PauseResumeButton', 'PauseButtonTheme')
-
+            dpg.bind_item_theme('PauseResumeButton', 'PauseButtonTheme') # 绑定暂停按钮主题
+        # 
         dpg.add_window(
             tag="MainWindow",
             label="Microscopic simulation",
@@ -181,7 +196,10 @@ class GUI:
         self.BGnode = dpg.add_draw_node(tag="CanvasBG", parent="MainWindow")
         dpg.add_draw_node(tag="Canvas", parent="MainWindow")
 
+        # 实时模拟模式-关键窗口绘制
+        # 6.24 找到了绘制模拟窗口的方法
         if self.mode == 'real-time-ego' or self.mode == 'replay-ego':
+            # 创建实时模拟窗口
             with dpg.window(
                 tag='vState',
                 label='Vehicle states',
@@ -190,6 +208,7 @@ class GUI:
                 # no_resize=True,
                 # no_move=True
             ):
+                # 创建实时模拟窗口中的图表
                 with dpg.plot(tag='vehicleStates', height=305, width=400):
                     dpg.add_plot_legend()
 
@@ -232,14 +251,25 @@ class GUI:
                     dpg.bind_item_theme(
                         'a_series_tag_future', 'plot_theme_a_future'
                     ) 
+            # 绘制评价指标窗口
+            # # 6.30 尝试对其进行更改
+            # with dpg.window(
+            #     tag='sEvaluation', # 窗口的标识
+            #     label='Evaluation', # 窗口标题的名字
+            #     no_close=True,
+            # ):
+            #     dpg.add_draw_node(tag="radarBackground", parent="sEvaluation")
+            #     dpg.add_draw_node(tag="radarPlot", parent="sEvaluation")
+            
+            # 将雷达图改成TSIL文本展示窗口
             with dpg.window(
-                tag='sEvaluation',
-                label='Evaluation',
+                tag='TSILs', # 窗口的标识
+                label='TSIL-Presentation', # 窗口标题的名字
                 no_close=True,
             ):
-                dpg.add_draw_node(tag="radarBackground", parent="sEvaluation")
-                dpg.add_draw_node(tag="radarPlot", parent="sEvaluation")
-
+                dpg.add_draw_node(tag="TSIL-Text", parent="TSILs")
+            
+            # 绘制城市级别地图窗口
             with dpg.window(
                 tag='macroMap',
                 label='City-level map',
@@ -247,12 +277,13 @@ class GUI:
             ):
                 dpg.add_draw_node(tag="mapBackground", parent="macroMap")
                 dpg.add_draw_node(tag="movingScene", parent="macroMap")
-
+            # 创建“模拟信息（simInfo）”窗口
             with dpg.window(
                 tag='simInfo',
                 label='Simulation information',
                 no_close=True,
             ):
+                # 将文本节点（infoText）挂载到simInfo窗口下
                 dpg.add_draw_node(tag="infoText", parent="simInfo")
 
 
@@ -273,9 +304,13 @@ class GUI:
             dpg.set_item_height('vState', 345)
             dpg.set_item_pos('vState', (1230, 10))
 
-            dpg.set_item_width('sEvaluation', 415)
-            dpg.set_item_height('sEvaluation', 345)
-            dpg.set_item_pos('sEvaluation', (1230, 365))
+            # dpg.set_item_width('sEvaluation', 415)
+            # dpg.set_item_height('sEvaluation', 345)
+            # dpg.set_item_pos('sEvaluation', (1230, 365))
+            # 为TSILs窗口设置窗口参数
+            dpg.set_item_width('TSILs', 415)
+            dpg.set_item_height('TSILs', 345)
+            dpg.set_item_pos('TSILs', (1230, 365))
 
             dpg.set_item_width('macroMap', 500)
             dpg.set_item_height('macroMap', 500)
@@ -301,9 +336,13 @@ class GUI:
             dpg.set_item_height('vState', 345)
             dpg.set_item_pos('vState', (1230, 120))
 
-            dpg.set_item_width('sEvaluation', 415)
-            dpg.set_item_height('sEvaluation', 345)
-            dpg.set_item_pos('sEvaluation', (1230, 475))
+            # dpg.set_item_width('sEvaluation', 415)
+            # dpg.set_item_height('sEvaluation', 345)
+            # dpg.set_item_pos('sEvaluation', (1230, 475))
+            # 为TSILs窗口设置窗口参数
+            dpg.set_item_width('TSILs', 415)
+            dpg.set_item_height('TSILs', 345)
+            dpg.set_item_pos('TSILs', (1230, 365))
 
             dpg.set_item_width('macroMap', 500)
             dpg.set_item_height('macroMap', 500)
