@@ -31,7 +31,7 @@ class EgoPlanner(AbstractEgoPlanner):
 
         vehicle_id = ego_veh.id # 车辆ID
         start = time.time() # 开始时间
-        current_lane = roadgraph.get_lane_by_id(ego_veh.lane_id) # 当前车   道
+        current_lane = roadgraph.get_lane_by_id(ego_veh.lane_id) # 当前车道
 
         obs_list = [] # 障碍物列表
         # Process static obstacle
@@ -95,7 +95,7 @@ class EgoPlanner(AbstractEgoPlanner):
                     )
 
         # 如果当前车辆行为是停止
-        # 5.26 finding：车辆状态为停止时，生成停止轨迹
+
         elif ego_veh.behaviour == Behaviour.STOP:
             # Stopping
             path = traj_generator.stop_trajectory_generator(

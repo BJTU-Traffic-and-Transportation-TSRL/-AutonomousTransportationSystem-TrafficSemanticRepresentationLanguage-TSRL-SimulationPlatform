@@ -1,3 +1,7 @@
+"""
+功能：创建仿真平台上的车辆
+"""
+
 from __future__ import annotations
 
 from collections import deque
@@ -14,6 +18,7 @@ from simModel.common.networkBuild import NetworkBuild, Rebuild
 from utils.simBase import CoordTF, deduceEdge
 from utils.trajectory import Trajectory
 from utils.roadgraph import NormalLane, JunctionLane
+from simModel.common.vehicle_communication import HvCommunicator, RvCommunicator, get_communication_manager
 
 
 class Vehicle:# 定义车辆类别
@@ -469,32 +474,6 @@ class Vehicle:# 定义车辆类别
         else:
             self.routeIdxQ.append(traci.vehicle.getRouteIndex(self.id))
 
-    """
-    # 5.21 添加车辆停车信息存储方法
-    # """
-    # # 车辆的停车信息获取-方法
-    # def getStopInfo(self,id):
-    #     # 获取特定id车辆的停止行为
-    #     stops = traci.vehicle.getStops(id)
-    #     if stops:
-    #         for stop in stops:
-    #             lane = stop.lane
-    #             end_pos = stop.endPos
-    #             until = stop.until
-    #             self.stop_lane.append(lane) 
-    #             self.stop_pos.append(end_pos)
-    #             self.stop_until.append(until)
-
-    # # 存储车辆停车车道
-    # def stopLaneAppend(self, laneID: str):
-    #     self.stop_lane.append(laneID)
-    # # 存储车辆停车位置
-    # def stopPosAppend(self, pos: float):
-    #     self.stop_pos.append(pos)
-    # # 存储车辆停车截止时间
-    # def stopUntilAppend(self, until: float):
-    #     self.stop_until.append(until)
-
     def __hash__(self) -> int:
         return hash(self.id)
 
@@ -517,9 +496,10 @@ class egoCar(Vehicle):
     ) -> None:
         super().__init__(id)
         # detection area
-        self.deArea = deArea
-        self.sceMargin = sceMargin
-
+        self.deArea = deArea # 检测区域半径
+        self.sceMargin = sceMargin # 场景边缘距离
+    
+    # 在GUI中绘制自车的检测区域（黄色半透明圆形）
     def plotdeArea(self, node: dpg.node, ex: float, ey: float, ctf: CoordTF):
         cx, cy = ctf.dpgCoord(self.x, self.y, ex, ey)
         dpg.draw_circle(
@@ -562,3 +542,24 @@ class DummyVehicle:
             fill=(243, 156, 18, 20),
             parent=node
         )
+        
+    # 7.15：添加车辆通信器
+    def init_communication(self):
+        """初始化车辆通信器"""
+        comm_manager = get_communication_manager()
+        # 判断是否为自车（这里假设ID为'HV'的是自车，可以根据实际情况修改）
+        if self.id == 'HV':
+            self.communicator = HvCommunicator(self.id, comm_manager)
+        else:
+            self.communicator = RvCommunicator(self.id, comm_manager)
+        
+        # 将车辆实例关联到通信器
+        self.communicator.vehicle = self
+
+    def emergency_stop(self):
+        """执行紧急停车并发送消息"""
+        # 执行紧急停车逻辑
+        traci.vehicle.setStop(self.id, self.laneID, self.lanePos)
+        # 发送紧急停车消息
+        if hasattr(self, 'communicator'):
+            self.communicator.send_emergency_stop_message()

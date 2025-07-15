@@ -539,7 +539,7 @@ class Model:
         # control happens next timestep
         if veh.plannedTrajectory and veh.plannedTrajectory.xQueue:
             centerx, centery, yaw, speed, accel, stop_flag = veh.plannedTrajectory.pop_last_state(
-            ) # 获取车辆轨迹的最后一个状态， 6.16： 在以上输出状态中，需要一个和停车有关的状态，从而在try中对车辆进行停车控制！
+            ) 
             try:
                 veh.controlSelf(centerx, centery, yaw, speed, accel,stop_flag) # 控制车辆移动 6.16:添加stop_flag
             except:

@@ -41,7 +41,7 @@ def run_model(
             carla_cosim=carla_cosim,
             max_steps=int(max_sim_time * 10), # 将max_sim_time转换为步长
         )
-        model.start() # 初始化，无问题
+        model.start() # 初始化
         planner = TrafficManager(model) # 车辆规划模块，无问题
 
         # 主循环
@@ -70,24 +70,17 @@ def run_model(
 
     except Exception as e:
         log.error(f"Error during model initialization: {str(e)}")
-    finally:
-        try:
-            # 确保正确关闭连接
-            if 'model' in locals():
-                model.destroy()
-            try:
-                traci.close()
-            except Exception as e:
-                # 如果连接已经关闭，忽略这个错误
-                if "Not connected" not in str(e):
-                    log.error(f"Error during traci cleanup: {str(e)}")
-        except Exception as e:
-            log.error(f"Error during model cleanup: {str(e)}")
 
 if __name__ == "__main__":
     try:
         net_file, rou_file = file_paths['ForwardCollisionWarning']
         print("net_file:",net_file,",rou_file:",rou_file)
+        
+        # 在指定路径打开input_FCW文本文档并写入指定内容
+        content_to_write = "EmergencyStation(RV);\nSelfVehicle(HV);\nChangeLane(y):-SelfVehicle(y),EmergencyStation(x);\nASK ChangeLane(y);"
+        with open(r'E:\学习资料\董组\时空推理\LimSim\LimSim\TSIL\input_FCW.txt', 'w') as file:
+            file.write(content_to_write)
+
         run_model(net_file, 
                 rou_file,
                 ego_veh_id="1",
