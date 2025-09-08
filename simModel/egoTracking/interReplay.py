@@ -28,24 +28,26 @@ class InterReplayModel:
     def __init__(self,
                  dataBase: str,
                  dataBase2: str = None,
-                 startFrame: int = None,
+                 startFrame: int = None, # 交互式重放开始时间步
                  simNote: str = ''
                  ) -> None:
         print('[green bold]Model initialized at {}.[/green bold]'.format(
             datetime.now().strftime('%H:%M:%S.%f')[:-3]
         ))
-        self.sim_mode: str = 'InterReplay'
-        self.dataBase = dataBase
-        conn = sqlite3.connect(self.dataBase)
-        cur = conn.cursor()
+        self.sim_mode: str = 'InterReplay' # 交互式重放模式-控制字符
+        self.dataBase = dataBase # 场景数据库
+        conn = sqlite3.connect(self.dataBase) # 连接场景数据库
+        cur = conn.cursor() # 数据库游标
 
         # minTimeStep
-        cur.execute("""SELECT MAX(frame) FROM frameINFO;""")
-        maxTimeStep = cur.fetchone()[0] - 200
+        cur.execute("""SELECT MAX(frame) FROM frameINFO;""") # 从frameInfo中提取最大时间步
+        result = cur.fetchone() # 提取最大时间步
+        maxTimeStep = result[0] - 200 if result and result[0] is not None else 0
         if maxTimeStep < 0:
             maxTimeStep = 0
-        cur.execute("""SELECT MIN(frame) FROM frameINFO;""")
-        minTimeStep = cur.fetchone()[0]
+        cur.execute("""SELECT MIN(frame) FROM frameINFO;""") # 从frameInfo中提取最小时间步
+        result = cur.fetchone() # 提取最小时间步
+        minTimeStep = result[0] if result and result[0] is not None else 0 # 最小时间步
         if startFrame:
             if startFrame > maxTimeStep:
                 print(
@@ -70,18 +72,29 @@ class InterReplayModel:
         self.rb.getData()
         self.rb.buildTopology()
 
-        cur.execute("""SELECT * FROM simINFO;""")
+        cur.execute("""SELECT * FROM simINFO;""") # 从simInfo中提取场景信息
         simINFO = cur.fetchone()
         _, localPosx, localPosy, radius, egoID, strBoundary, _, _ = simINFO
         if egoID:
             self.egoID = egoID
             self.ego = self.initVeh(egoID, self.timeStep)
             netBoundaryList = strBoundary.split(' ')
+            # 过滤掉空字符串
+            netBoundaryList = [p for p in netBoundaryList if p]
             self.netBoundary: list[list[float]] = [
                 list(map(float, p.split(','))) for p in netBoundaryList
             ]
         else:
             raise TypeError('Please select the appropriate database file.')
+
+        # 初始化self.sr
+        self.sr = SceneReplay(self.rb, None)  # 先传入None，稍后再设置ego
+
+        # 现在可以安全地初始化self.ego了
+        if egoID:
+            self.ego = self.initVeh(egoID, self.timeStep)
+            # 更新SceneReplay中的ego引用
+            self.sr.ego = self.ego
 
         cur.close()
         conn.close()
@@ -97,8 +110,6 @@ class InterReplayModel:
         self.databaseMigration()
         self.dataQue = Queue()
         self.createTimer()
-
-        self.sr = SceneReplay(self.rb, self.ego)
 
         self.evaluation = RealTimeEvaluation(dt=0.1)
 
@@ -256,6 +267,7 @@ class InterReplayModel:
         cur.close()
         conn.close()
 
+    # 从数据库中提取车辆历史轨迹
     def dbTrajectory(self, vehid: str, currFrame: int) -> dict:
         conn = sqlite3.connect(self.dataBase)
         cur = conn.cursor()
@@ -270,10 +282,11 @@ class InterReplayModel:
             # if the trajectory is segmented in time, only the data of the first
             # segment will be taken.
             validSeq = [frameData[0]]
-            for i in range(len(frameData)-1):
-                if frameData[i+1][0] - frameData[i][0] == 1:
-                    validSeq.append(frameData[i+1])
-
+            for i in range(1, len(frameData)):
+                if frameData[i][0] - frameData[i-1][0] == 1:
+                    validSeq.append(frameData[i])
+                else:
+                    break
             tState = []
             for vs in validSeq:
                 state = State(
@@ -283,7 +296,8 @@ class InterReplayModel:
                 tState.append(state)
             dbTrajectory = Trajectory(states=tState)
         else:
-            if vehid not in self.sr.vehINAoI.keys():
+            # 在这里检查self.sr是否已初始化
+            if self.sr and vehid not in self.sr.vehINAoI.keys():
                 self.sr.outOfRange.add(vehid)
             return
 

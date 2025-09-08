@@ -24,7 +24,6 @@ from simModel.common.networkBuild import NetworkBuild, Rebuild
 from utils.simBase import CoordTF, deduceEdge
 from utils.trajectory import Trajectory
 from utils.roadgraph import NormalLane, JunctionLane
-from trafficManager.common.vehicle_communication import CommunicationManager,VehicleCommunicator
 
 class Vehicle:# 定义车辆类别
     def __init__(self, id: str) -> None:
@@ -57,7 +56,6 @@ class Vehicle:# 定义车辆类别
         self.plannedTrajectory: Trajectory = None # 存储车辆计划轨迹
         self.dbTrajectory: Trajectory = None # 存储车辆数据库轨迹
         self.stop_info = []  # 7.20：添加单车停车信息存储列表
-        self.init_communication() # 初始化通信器
 
     # LLR: lane-level route
     # 获取车道级别路径
@@ -517,30 +515,7 @@ class Vehicle:# 定义车辆类别
             self.id, self.x, self.y,
             self.yaw, self.speed, self.accel, self.vTypeID
         )
-    
-    # 通信层
-    def init_communication(self):
-        """初始化车辆通信器"""
-        comm_manager = get_communication_manager()
-        # 根据车辆ID类型初始化对应通信器
-        # self.communicator = HvCommunicator(self.id, comm_manager)
-        self.communicator = RvCommunicator(self.id, comm_manager) # 初始化RV通信器
-        self.communicator.vehicle = self
         
-    """
-    现在需要考虑的是，如何在车辆真正停止时，触发此通信状况
-    """
-    def emergency_stop(self):
-        """执行紧急停车并发送消息"""
-        # 执行物理停车
-        traci.vehicle.setStop(self.id, self.laneID, self.lanePos)
-        # 发送紧急停车消息
-        if hasattr(self, 'communicator'):
-            self.communicator.send_emergency_stop_message()
-        # 更新停止状态
-        self.stop_flag = True
-
-
 # 定义Ego Car类
 class egoCar(Vehicle):
     def __init__(
@@ -555,14 +530,6 @@ class egoCar(Vehicle):
         self.sceMargin = sceMargin  # 场景边缘距离
         self.id = id # 确保id属性正确赋值
         
-    def init_communication(self):
-        """初始化车辆通信器"""
-        comm_manager = get_communication_manager()
-        # 根据车辆ID类型初始化对应通信器
-        self.communicator = HvCommunicator(self.id, comm_manager) # 这里和Vehicle不一样
-        # self.communicator = RvCommunicator(self.id, comm_manager)
-        self.communicator.vehicle = self
-    
     # 在GUI中绘制自车的检测区域（黄色半透明圆形）
     def plotdeArea(self, node: dpg.node, ex: float, ey: float, ctf: CoordTF):
         cx, cy = ctf.dpgCoord(self.x, self.y, ex, ey)

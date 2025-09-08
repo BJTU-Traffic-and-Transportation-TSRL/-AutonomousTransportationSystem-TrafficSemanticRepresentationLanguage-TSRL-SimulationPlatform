@@ -1,6 +1,6 @@
 import logger
 # config a logger, set use_stdout=True to output log to terminal
-log = logger.setup_app_level_logger(file_name="app_debug.log",
+log = logger.setup_app_level_logger(file_name="app_debug_InterReplay.log",
                                     level="DEBUG",
                                     use_stdout=False)
 
@@ -8,7 +8,7 @@ from trafficManager.traffic_manager import TrafficManager
 from simModel.egoTracking import interReplay
 
 irmodel = interReplay.InterReplayModel(
-    dataBase='egoTrackingTest.db', startFrame=5000)
+    dataBase='egoTrackingTest.db', startFrame=5000) # 交互式重放模拟，开始时间步为5000
 planner = TrafficManager(irmodel)
 
 while not irmodel.tpEnd:
