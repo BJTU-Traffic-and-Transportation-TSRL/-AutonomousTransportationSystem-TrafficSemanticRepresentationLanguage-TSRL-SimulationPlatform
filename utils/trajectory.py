@@ -4,6 +4,7 @@ Date: 2022-11-08 10:22:23
 Description: 
 Copyright (c) 2022 by PJLab, All Rights Reserved. 
 """
+
 from __future__ import annotations
 from utils.roadgraph import AbstractLane
 from utils.cubic_spline import Spline2D
@@ -89,29 +90,30 @@ class CertesianState: # 笛卡尔坐标系下的状态
     t: float = 1.0
     x: float = 0.0
     y: float = 0.0
-    yaw: float = 0.0
-    cur: float = 0.0
-    vel: float = 0.0
-    acc: float = 0.0
+    yaw: float = 0.0 # 航向角
+    cur: float = 0.0 # 曲率
+    vel: float = 0.0 # 线速度
+    acc: float = 0.0 # 加速度
     stop_flag: bool = False # 6.16:笛卡尔停车标记  
 
 @dataclass
 class FrenetState: #  frenet坐标系下的状态
     laneID: str = None  # lane ID
-    t: float = 2.0
+    t: float = 2.0 # 时间
     s: float = 0.0  # lane pos
-    routeIdx: int = 0
-    s_d: float = 0.0
-    s_dd: float = 0.0
-    s_ddd: float = 0.0
-    d: float = 0.0
-    d_d: float = 0.0
-    d_dd: float = 0.0
-    d_ddd: float = 0.0
+    routeIdx: int = 0 # 车道索引
+    s_d: float = 0.0 # 横坐标速度
+    s_dd: float = 0.0 # 横坐标加速度
+    s_ddd: float = 0.0 # 横坐标二阶
+    d: float = 0.0 # 纵坐标距离
+    d_d: float = 0.0 # 纵坐标距离的导数
+    d_dd: float = 0.0 # 纵坐标距离的二阶导数
+    d_ddd: float = 0.0 # 纵坐标距离的三阶导数
     stop_flag: bool = False # 6.16:Frenet停车标记 
 
 
 @dataclass
+# 定义状态类，同时继承了CertesianState类和FrenetState类
 class State(CertesianState, FrenetState):
     """State of the trajectory."""
 
@@ -123,6 +125,7 @@ class State(CertesianState, FrenetState):
     Modified from: https://blog.csdn.net/u013468614/article/details/108748016
     """
 
+    # 定义方法：将笛卡尔坐标系下的状态转换为Frenet坐标系下的状态
     def complete_cartesian2D(self, rx: float, ry: float, ryaw: float,
                              rkappa: float) -> None:
         cos_theta_r = math.cos(ryaw)
@@ -141,6 +144,7 @@ class State(CertesianState, FrenetState):
             self.yaw = math.asin(self.d_d / self.vel) + ryaw
         return
 
+    # 定义方法：将Frenet坐标系下的状态转换为笛卡尔坐标系下的状态
     def complete_frenet2D(self, rs: float, rx: float, ry: float, ryaw: float,
                           rkappa: float) -> None:
         self.s = rs
@@ -177,6 +181,7 @@ class Trajectory:
         x, y, yaw, vel, acc, laneID, lanPos, stop_flag
         """
         last_state = self.states.pop(0)
+        # print(last_state)
         return last_state.x, last_state.y, last_state.yaw, last_state.vel, last_state.acc, last_state.stop_flag
 
     def pop_last_state_r(self) -> tuple:
@@ -219,6 +224,7 @@ class Trajectory:
     def routeIdxQueue(self) -> deque[float]:
         return deque([state.routeIdx for state in self.states])
 
+    # 定义静态方法：将多个轨迹拼接成一个轨迹
     @staticmethod
     def concatenate(list_of_trajectories: list[Trajectory]) -> Trajectory:
         """Concatenate a list of trajectories into one trajectory."""
@@ -233,6 +239,7 @@ class Trajectory:
             t = states[-1].t if len(states) > 0 else t
         return Trajectory(states, cost)
 
+    # 定义方法：将另一个轨迹拼接在当前轨迹的末尾
     def concatenate(self, other_traj):
         if self.states != []:
             t = self.states[-1].t
@@ -244,6 +251,7 @@ class Trajectory:
             self.states[-1].t += t
         self.cost += other_traj.cost
 
+    # 定义方法：将当前轨迹转换为笛卡尔坐标系下的状态
     def frenet_to_cartesian(self, lanes: list[AbstractLane],
                             init_state: State) -> None:
         warnings.filterwarnings("error")
@@ -311,6 +319,7 @@ class Trajectory:
 
         return
 
+    # 定义方法：将当前轨迹转换为Frenet坐标系下的状态
     def cartesian_to_frenet(self, csp: Spline2D) -> None:
         """
         Where s is by default monotonically increasing in the direction of the trajectory, and only the s,s',d,d' coordinates are updated

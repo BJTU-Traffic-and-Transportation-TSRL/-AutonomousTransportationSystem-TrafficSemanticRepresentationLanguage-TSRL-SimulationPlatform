@@ -1,8 +1,9 @@
+from pickle import TRUE
 import time
 from typing import Dict, List
 
 from common.observation import Observation
-from common.vehicle import Behaviour, Vehicle, VehicleType
+from common.vehicle import Behaviour, control_Vehicle, VehicleType
 from decision_maker.abstract_decision_maker import (
     EgoDecision,
     MultiDecision,
@@ -27,23 +28,39 @@ class MultiVehiclePlanner(AbstractMultiPlanner):
              uncontrolled_prediction: Prediction,
              T,
              config,
-             multi_decision: MultiDecision = None) -> Dict[Vehicle, Trajectory]:
+             multi_decision: MultiDecision = None) -> Dict[control_Vehicle, Trajectory]:
+        """
+        多车规划函数，该函数只对AOI内的非Ego车进行规划
+
+        Args:
+            controlled_observation (Observation): 受控车辆的观察
+            roadgraph (RoadGraph): 路网图
+            uncontrolled_prediction (Prediction): 未受控车辆的预测
+            T (_type_): 当前时间
+            config (_type_): 配置参数
+            multi_decision (MultiDecision, optional): 多车决策. Defaults to None.
+        Returns:
+            Dict[Vehicle, Trajectory]: 多车规划结果
+        """
         plan_result: Dict[int, Trajectory] = {}
         for vehicle in controlled_observation.vehicles:
+            # 遍历所有车辆
             start = time.time()
+            # 如果是AOI外的车辆，跳过
             if vehicle.vtype == VehicleType.OUT_OF_AOI:
                 continue
-            if config["EGO_PLANNER"] and vehicle.vtype == VehicleType.EGO:
+            if config["EGO_PLANNER"] and vehicle.vtype == VehicleType.EGO: # 如果是Ego车 也跳过
                 continue
-
+            # 获取当前车辆所在的车道
             current_lane = roadgraph.get_lane_by_id(vehicle.lane_id)
-
+            # 提取障碍物信息
             obs_list = self.extract_obstacles(controlled_observation,
                                               uncontrolled_prediction,
                                               vehicle,roadgraph)
+            # 提取决策，第三部分决策模块有效果，该部分才能有用，否则返回None
             decision_list = self.find_decision(vehicle, multi_decision, T,
                                                config)
-            # Plan for current vehicle
+            # Plan for current vehicle（对于当前车辆，生成轨迹）
             path = self.generate_trajectory(
                 roadgraph, T, config, vehicle, current_lane, obs_list, decision_list
             )
@@ -55,15 +72,16 @@ class MultiVehiclePlanner(AbstractMultiPlanner):
         return plan_result
 
     def generate_trajectory(
-        self, roadgraph:RoadGraph, T, config, vehicle: Vehicle, current_lane : AbstractLane, obs_list, decision_list
+        self, roadgraph:RoadGraph, T, config, vehicle: control_Vehicle, current_lane : AbstractLane, obs_list, decision_list
+
     ):
         next_lane = roadgraph.get_available_next_lane(
             current_lane.id, vehicle.available_lanes
         )
         lanes = [current_lane, next_lane] if next_lane != None else [current_lane]
-
-        if vehicle.behaviour == Behaviour.KL:
-            if self.is_waiting_for_green_light(current_lane, next_lane):
+        # 如果车辆行为是保持车道
+        if vehicle.behaviour ==Behaviour.KL:
+            if self.is_waiting_for_green_light(current_lane, next_lane): # 如果当前车道是红灯
                 # Stop
                 path = traj_generator.stop_trajectory_generator(
                     vehicle, lanes, obs_list, roadgraph, config, T, redLight=True
@@ -86,8 +104,10 @@ class MultiVehiclePlanner(AbstractMultiPlanner):
                     path = traj_generator.stop_trajectory_generator(
                         vehicle, lanes, obs_list, roadgraph, config, T,
                     )
-        elif vehicle.behaviour == Behaviour.STOP:
+        elif vehicle.behaviour == Behaviour.STOP: 
             # Stopping
+            if vehicle.stop_lane: # 8.4 如果是主动停车
+                vehicle.current_state.stop_flag = True
             path = traj_generator.stop_trajectory_generator(
                 vehicle, lanes, obs_list, roadgraph, config, T,
             )
@@ -177,7 +197,7 @@ class MultiVehiclePlanner(AbstractMultiPlanner):
         return next_lane.currTlState in ("R", "r")
 
     def extract_obstacles(self, observation: Observation,
-                          predictions, ego: Vehicle, roadgraph: RoadGraph):
+                          predictions, ego: control_Vehicle, roadgraph: RoadGraph):
         obs_list = []
         # Process static obstacle
         for obs in observation.obstacles:

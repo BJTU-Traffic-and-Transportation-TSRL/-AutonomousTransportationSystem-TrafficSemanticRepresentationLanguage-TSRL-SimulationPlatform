@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from common.observation import Observation
-from common.vehicle import Vehicle
+from common.vehicle import control_Vehicle
 
 from utils.roadgraph import RoadGraph
 from utils.trajectory import State

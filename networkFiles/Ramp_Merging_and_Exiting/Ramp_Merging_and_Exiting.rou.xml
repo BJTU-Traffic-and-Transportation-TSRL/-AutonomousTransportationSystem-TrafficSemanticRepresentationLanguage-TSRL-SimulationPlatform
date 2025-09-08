@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='utf-8'?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <vehicle id="0" depart="0.00" >
+        <route edges="Main_start Main_mid Main_end"/>
+    </vehicle>
+    <vehicle id="1" depart="5.00" >
+        <route edges="Merg Main_mid Main_end"/>
+    </vehicle>
+    <vehicle id="2" depart="10.00" >
+        <route edges="Main_start Main_mid Exit"/>
+    </vehicle>
+</routes>

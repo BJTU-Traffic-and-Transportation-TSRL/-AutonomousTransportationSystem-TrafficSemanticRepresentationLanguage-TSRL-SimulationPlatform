@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <input>
+    <net-file value="Vehicle_RSU_Interacting.net.xml"/>
+    <route-files value="Vehicle_RSU_Interacting.rou.xml"/>
+    <additional-files value="Vehicle_RSU_Interacting.add.xml"/>
+  </input>
+  <time>
+    <begin value="0"/>
+    <end value="600"/>
+  </time>
+</configuration>

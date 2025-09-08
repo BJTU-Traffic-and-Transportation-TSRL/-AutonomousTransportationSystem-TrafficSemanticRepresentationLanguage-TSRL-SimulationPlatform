@@ -8,7 +8,7 @@ It includes information about vehicles, their historical state trajectories, and
 它包括关于车辆、它们的过去状态轨迹和环境中障碍物的信息。
 """
 from typing import List, Dict
-from vehicle import Vehicle
+from vehicle import control_Vehicle
 from utils.obstacles import StaticObstacle
 from utils.trajectory import State
 
@@ -27,9 +27,9 @@ class Observation:
     """
 
     def __init__(self,
-                 vehicles: List[Vehicle] = None,
+                 vehicles: List[control_Vehicle] = None,
                  history_track: Dict[int, List[State]] = None,
                  static_obstacles: List[StaticObstacle] = None) -> None:
-        self.vehicles: List[Vehicle] = vehicles if vehicles is not None else []
+        self.vehicles: List[control_Vehicle] = vehicles if vehicles is not None else []
         self.history_track: Dict[int,List[State]] = history_track if history_track is not None else {}
         self.obstacles: List[StaticObstacle] = static_obstacles if static_obstacles is not None else []

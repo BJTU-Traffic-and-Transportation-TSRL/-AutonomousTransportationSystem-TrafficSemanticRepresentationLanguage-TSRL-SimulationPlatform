@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from typing import Dict
 
 from common.observation import Observation
-from common.vehicle import Vehicle
+from common.vehicle import control_Vehicle
 from decision_maker.abstract_decision_maker import EgoDecision, MultiDecision
 from predictor.abstract_predictor import Prediction
 

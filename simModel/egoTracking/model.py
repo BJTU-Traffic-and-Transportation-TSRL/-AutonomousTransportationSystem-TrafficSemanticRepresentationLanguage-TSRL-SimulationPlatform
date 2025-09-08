@@ -13,7 +13,9 @@ import numpy as np
 import traci
 from rich import print
 from traci import TraCIException
+from traci import vehicle
 from typing import Dict
+from utils.roadgraph import RoadGraph
 
 from simModel.common.carFactory import Vehicle, egoCar
 from simModel.common.gui import GUI
@@ -23,7 +25,9 @@ from utils.trajectory import State, Trajectory
 from utils.simBase import MapCoordTF, vehType
 
 from evaluation.evaluation import RealTimeEvaluation
+import read_stop_info # 7.20 添加停车解析内容
 
+from trafficManager.common.vehicle_communication import CommunicationManager,VehicleCommunicator
 
 class Model:
     '''
@@ -33,6 +37,7 @@ class Model:
                 vehicle-type file as an input, define this parameter as 
                 `examplevTypes.rou.xml,example.rou.xml`;
         obseFile: obstacle files, e.g. `example.obs.xml`;
+        addFile: additional files, e.g. `example.add.xml`;
         dataBase: the name of the database, e.g. `example.db`. if it is not 
                 specified, it will be named with the current timestamp.
         SUMOGUI: boolean variable, used to determine whether to display the SUMO 
@@ -47,11 +52,13 @@ class Model:
                  netFile: str,
                  rouFile: str,
                  obsFile: str = None,
+                 addFile: str = None,
                  dataBase: str = None,
                  SUMOGUI: int = 0,
                  simNote: str = None,
                  carla_cosim: bool = False,
-                 max_steps: int = 1000 # 4.23 添加最大模拟步长
+                 max_steps: int = 1000,# 4.23 添加最大模拟步长
+                 communication: bool = False, # 25.8.16 新增参数，全局通信管理器
                  ) -> None:
 
         print('[green bold]Model initialized at {}.[/green bold]'.format(
@@ -59,6 +66,7 @@ class Model:
         self.netFile = netFile
         self.rouFile = rouFile
         self.obsFile = obsFile
+        self.addFile = addFile
         self.SUMOGUI = SUMOGUI
         self.sim_mode: str = 'RealTime'
         self.timeStep = 0
@@ -71,7 +79,7 @@ class Model:
         self.tpEnd = 0 #自车离开网络时，tpEnd变为1
         # need carla cosimulation
         self.carla_cosim = carla_cosim # 是否需要Carla协同仿真
-
+        self.communication=communication # 25.8.16 新增参数，是否添加全局通信管理器
         self.ego = egoCar(egoID)
 
         if dataBase:
@@ -79,17 +87,22 @@ class Model:
         else:
             self.dataBase = datetime.strftime(
                 datetime.now(), '%Y-%m-%d_%H-%M-%S') + '_egoTracking' + '.db'
+        
+        # 7.20：添加模型车辆列表
+        self.vehicles: List[Vehicle] = []
+        # 7.20 添加停车解析内容
+        self.vehicles_with_stops = read_stop_info.extract_stop_info(self.rouFile)        
 
         self.createDatabase()
         self.simDescriptionCommit(simNote)
         self.dataQue = Queue()
         self.createTimer()
         
-        self.nb = NetworkBuild(self.dataBase, netFile, obsFile)
+        self.nb = NetworkBuild(self.dataBase, self.netFile, self.obsFile, self.addFile)
         self.nb.getData()
         self.nb.buildTopology()
 
-        self.ms = MovingScene(self.nb, self.ego)
+        self.ms = MovingScene(self.nb, self.ego, self.vehicles_with_stops)# 7.27 更新 Model 类初始化 MovingScene
 
         self.allvTypes = None
 
@@ -102,6 +115,22 @@ class Model:
             raise  # 重新抛出异常以便上层处理
 
         self.evaluation = RealTimeEvaluation(dt=0.1)
+
+    # 7.20 定义新方法，获得非Ego车辆列表
+    def getVehicleList(self):
+        # 8.17：获取roufile中的所有车辆ID，实例化车辆列表
+        vehicles_ids = []
+        elementTree = ET.parse(self.rouFile)
+        root = elementTree.getroot()
+        for child in root:
+            if child.tag == 'vehicle' and child.attrib['id'] != self.ego.id:
+                vehicle_id = child.attrib['id']
+                vehicles_ids.append(vehicle_id)
+        vehicles = []
+        for vehicle_id in vehicles_ids:
+            vehicle = Vehicle(vehicle_id)
+            vehicles.append(vehicle)
+        return vehicles
 
     # 创建数据库
     def createDatabase(self):
@@ -269,7 +298,7 @@ class Model:
         self.createTimer()
 
     # DEFAULT_VEHTYPE
-    # 获取所有车辆类型ID
+    # 获取所有车辆类型
     def getAllvTypeID(self) -> list:
         allvTypesID = []
         if ',' in self.rouFile:
@@ -296,6 +325,7 @@ class Model:
             num_clients = "2" # 设置客户端数量为2
         else:
             num_clients = "1" # 设置客户端数量为1
+        print("SUMO starting...\n正在启动sumo仿真...")
         traci.start([
             'sumo' if not self.SUMOGUI else 'sumo-gui', # 启动SUMO或SUMO-GUI
             '-n', self.netFile, # 加载网络文件
@@ -313,6 +343,7 @@ class Model:
             num_clients,
         ], port = 8813)
         traci.setOrder(1)
+        print("route info analysing...\n正在解析rou.xml文件...")
 
         allvTypeID = self.getAllvTypeID() # 获取所有车辆类型ID
         allvTypes = {}
@@ -338,6 +369,25 @@ class Model:
             allvTypes[vtid] = vtins
             self.allvTypes = allvTypes
         self.allvTypes = allvTypes
+        # 7.27：获取所有非Ego车辆实体
+        self.vehicles=self.getVehicleList()
+        # 8.19：加入Ego车辆实体
+        self.vehicles.append(self.ego)
+ 
+        # 7.27：停车信息分配
+        # 如果self.vehicles非空，将self.vehicles_with_stops分配给对应车辆
+        if self.vehicles:
+            read_stop_info.assign_stops_to_vehicles(self.vehicles_with_stops, self.vehicles)
+            # 同时更新 MovingScene 的停车信息
+            self.ms.vehicles_with_stops = self.vehicles_with_stops
+        # 打印所有车辆的stop_info
+        print("所有车辆的stop_info：")
+        for v in self.vehicles:
+            if v.stop_info:
+                print("车辆ID：", v.id, "停车信息：", v.stop_info)
+            else:
+                print("车辆ID：", v.id, "停车信息：无")
+        # 7.17，display初始化：初始化所有车辆的展示文本数据库
 
     # 绘制车辆状态
     def plotVState(self):
@@ -419,7 +469,6 @@ class Model:
                         thickness=0,
                         fill=(243, 156, 18, 60),
                         parent=mvNode) # 橙色半透明节点
-
         # 左下角的仿真信息文本（simInfo）
         infoNode = dpg.add_draw_node(parent='simInfo') 
         # 在infoNode节点上进行文本写作
@@ -458,12 +507,32 @@ class Model:
                          thickness=5, # 雷达图轮廓宽度
                          parent=radarNode) # 在radarNode上进行绘画
         """
+        # 8.27 新增TSIL展示窗口，以及TSIL文本读取和展示功能
         TSILNode = dpg.add_draw_node(parent='TSILs') 
-        dpg.draw_text((5, 5),
-            'test_TSIL_infomation',
+        # 读取display_text.txt文件内容
+        display_text_path = os.path.join(os.path.dirname(__file__), '..', '..', 'message_history/display_text.txt')
+        try:
+            with open(display_text_path, 'r', encoding='utf-8') as f:
+                display_content = f.read().strip()
+                if not display_content:
+                    display_content = 'No display text available'
+        except Exception as e:
+            display_content = f'Error reading display_text.txt: {str(e)}'
+        # 将文本按行分割并显示
+        lines = display_content.split('\n')
+        y_offset = 5
+        for i, line in enumerate(lines[:10]):  # 限制显示前10行
+            dpg.draw_text((5, y_offset + i * 25),
+                line,
                 color=(75, 207, 250),
                 size=20,
                 parent=TSILNode) # 绘制模拟信息
+        # dpg.draw_text((5, 5),
+        #     'test TSIL infomation',
+        #         color=(75, 207, 250),
+        #         size=20,
+        #         parent=TSILNode) # 绘制模拟信息
+
     # 评估信息坐标转换，为了将评估数据的极坐标转换为GUI界面中窗口的屏幕坐标系统，以在
     # 屏幕上进行图标绘制
  
@@ -541,7 +610,7 @@ class Model:
             centerx, centery, yaw, speed, accel, stop_flag = veh.plannedTrajectory.pop_last_state(
             ) 
             try:
-                veh.controlSelf(centerx, centery, yaw, speed, accel,stop_flag) # 控制车辆移动 6.16:添加stop_flag
+                veh.controlSelf(centerx, centery, yaw, speed, accel, stop_flag) # 控制车辆移动 6.16:添加stop_flag
             except:
                 return
         else:
@@ -575,7 +644,7 @@ class Model:
             dpg.delete_item("movingScene", children_only=True)
             dpg.delete_item("simInfo", children_only=True)
             dpg.delete_item("radarPlot", children_only=True)
-            self.ms.updateScene(self.dataQue, self.timeStep)
+            self.ms.updateScene(self.dataQue, self.timeStep) # 更新获取的场景信息
             self.ms.updateSurroudVeh() # 定义了AOI内车辆、AOI外但是场景内车辆、场景外车辆
 
             self.getVehInfo(self.ego) # 获取ego主车的信息
@@ -584,9 +653,8 @@ class Model:
                     self.getVehInfo(v) # 获取场景内周边车辆的信息
 
             self.update_evluation_data()
-
-            self.drawScene()
-            self.plotVState()
+            self.drawScene() # 绘制LimSim场景
+            self.plotVState() # 绘制车辆状态曲线
         else:
             if self.tpStart:
                 print('[cyan]The ego car has reached the destination.[/cyan]')
@@ -662,8 +730,8 @@ class Model:
         self.gui.drawMainWindowWhiteBG((x1-100, y1-100), (x2+100, y2+100))
     
     def render(self):
-        self.gui.update_inertial_zoom() # 更新 inertial zoom
-        self.getSce() # 更新场景
+        self.gui.update_inertial_zoom() # 更新 inertial zoom（未知）
+        self.getSce() # 获取LimSim场景
         dpg.render_dearpygui_frame() # 渲染dearpygui框架
 
 
@@ -681,7 +749,7 @@ class Model:
                 # self.drawRadarBG() # 绘制雷达背景   
                 self.drawMapBG() # 绘制地图背景
                 self.tpStart = 1 # 设置模拟开始标志
-            self.render() # 渲染场景
+            self.render() # 渲染仿真界面场景
 
     def destroy(self):
         # stop the saveThread.

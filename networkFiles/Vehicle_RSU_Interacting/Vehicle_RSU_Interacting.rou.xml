@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes>
+  <!-- 自动驾驶测试车 -->
+  <vehicle id="AV_0" depart="0" color="1,0,0">
+    <route edges="main"/>
+  </vehicle>
+
+  <!-- 背景车流 -->
+  <flow id="bg" begin="0" end="600" vehsPerHour="1200">
+    <route edges="main"/>
+  </flow>
+</routes>

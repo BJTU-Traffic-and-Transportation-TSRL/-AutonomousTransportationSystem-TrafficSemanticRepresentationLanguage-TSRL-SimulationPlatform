@@ -148,7 +148,10 @@ class GUI:
     def create_windows(self):
         # 全局字体设置
         with dpg.font_registry():
-            default_font = dpg.add_font("simModel/common/fonts/Meslo.ttf", 18) # 全局字体设置
+            # 获取当前脚本文件的绝对路径
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            font_path = os.path.join(current_dir, "fonts", "Meslo.ttf")
+            default_font = dpg.add_font(font_path, 18) # 全局字体设置
         # 主窗口字体设置
         dpg.bind_font(default_font)
         # 回放模式窗口创建

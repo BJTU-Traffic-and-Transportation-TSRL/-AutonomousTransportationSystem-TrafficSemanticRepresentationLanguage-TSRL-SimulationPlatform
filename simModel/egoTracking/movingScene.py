@@ -8,29 +8,34 @@ import sqlite3
 
 from simModel.common.networkBuild import NetworkBuild, Rebuild
 from simModel.common.carFactory import Vehicle, egoCar, DummyVehicle
+from simModel.common.facilitiesFactory import RSU
 from utils.roadgraph import RoadGraph
 from utils.simBase import CoordTF
 
+from read_stop_info import assign_stops_to_vehicles
 
 class MovingScene:
-    def __init__(self, netInfo: NetworkBuild, ego: egoCar) -> None:
+    def __init__(self, netInfo: NetworkBuild, ego: egoCar,vehicles_with_stops=None) -> None:
         self.netInfo = netInfo
         self.ego = ego
         self.edges: set = None
         self.junctions: set = None
+        self.RSUs: dict[str, RSU] = {}
         self.currVehicles: dict[str, Vehicle] = {}
         self.vehINAoI: dict[str, Vehicle] = {}
         self.outOfAoI: dict[str, Vehicle] = {}
+        self.vehicles_with_stops = vehicles_with_stops  # 7.27添加停车信息
 
     # if lane-lenght <= the self.ego's deArea, return current edge, current
     # edge's upstream intersection and current edge's downstream intersection.
     # else, judge if the upstream intersection or downstream intersection
     # is in the range of the vehicle's deArea.
     def updateScene(self, dataQue: Queue, timeStep: int):
-        ex, ey = traci.vehicle.getPosition(self.ego.id)
+        # 9.7 添加更新RSUs的部分
+        ex, ey = traci.vehicle.getPosition(self.ego.id) # 获取ego主车的位置
         currGeox = int(ex // 100)
         currGeoy = int(ey // 100)
-
+        # 获取当前场景中的geohash
         sceGeohashIDs = (
             (currGeox-1, currGeoy-1),
             (currGeox, currGeoy-1),
@@ -45,6 +50,7 @@ class MovingScene:
 
         NowEdges: set = set()
         NowJuncs: set = set()
+        NowRSUs = set()
 
         for sgh in sceGeohashIDs:
             try:
@@ -53,10 +59,13 @@ class MovingScene:
                 continue
             NowEdges = NowEdges | geohash.edges
             NowJuncs = NowJuncs | geohash.junctions
+            NowRSUs |= geohash.rsus
 
         self.edges = NowEdges
         self.junctions = NowJuncs
-
+        # self.RSUs = NowRSUs
+        self.RSUs = {rsu_id: self.netInfo.getRSU(rsu_id) for rsu_id in NowRSUs}
+        
         NowTLs = {}
         for jid in NowJuncs:
             junc = self.netInfo.getJunction(jid)
@@ -158,8 +167,11 @@ class MovingScene:
 
         self.vehINAoI = vehInAoI
         self.outOfAoI = outOfAoI
-
-    # 绘制场景
+        # 7.27 同步停车信息
+        if self.vehicles_with_stops:
+            assign_stops_to_vehicles(self.vehicles_with_stops, self.currVehicles)
+    
+    # 绘制LimSim场景
     def plotScene(self, node: dpg.node, ex: float, ey: float, ctf: CoordTF):
         if self.edges:
             # 绘制道路
@@ -170,6 +182,11 @@ class MovingScene:
             # 绘制路口
             for jc in self.junctions:
                 self.netInfo.plotJunction(jc, node, ex, ey, ctf)
+        # 9.5 添加绘制RSU方法
+        if self.RSUs:
+            # 绘制RSU
+            for rsu in self.RSUs:
+                self.netInfo.plotRSU(rsu, node, ex, ey, ctf)
 
     def exportScene(self):
         roadgraph = RoadGraph()
@@ -192,9 +209,9 @@ class MovingScene:
             'egoCar': self.ego.export2Dict(self.netInfo), #自车
             'carInAoI': [av.export2Dict(self.netInfo) for av in self.vehINAoI.values()] ,# AOI内的车
             'outOfAoI': [sv.export2Dict(self.netInfo) for sv in self.outOfAoI.values()] # AOI外的车
-        }
+        }       
 
-        return roadgraph, vehicles
+        return roadgraph,vehicles           
 
 
 class SceneReplay:
@@ -227,6 +244,7 @@ class SceneReplay:
 
         NowEdges: set = set()
         NowJuncs: set = set()
+        NowRSUs: set = set()  # 9.6 新增：存储当前范围内的RSU
 
         for sgh in sceGeohashIDs:
             try:
@@ -235,6 +253,7 @@ class SceneReplay:
                 continue
             NowEdges = NowEdges | geohash.edges
             NowJuncs = NowJuncs | geohash.junctions
+            NowRSUs = NowRSUs | geohash.rsus  # 9.6 新增：获取RSU
 
         self.edges = NowEdges
         self.junctions = NowJuncs
@@ -309,6 +328,9 @@ class SceneReplay:
 
         self.vehINAoI = vehInAoI
         self.outOfAoI = outOfAoI
+        # 7.27 同步停车信息
+        if hasattr(self, 'vehicles_with_stops'):
+            assign_stops_to_vehicles(self.vehicles_with_stops, self.currVehicles)
 
     def exportScene(self):
         roadgraph = RoadGraph()

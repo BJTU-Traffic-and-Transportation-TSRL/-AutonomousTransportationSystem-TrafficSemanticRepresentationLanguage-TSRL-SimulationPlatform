@@ -1,0 +1,11 @@
+<configuration>
+	<input>
+		<net-file value="Ramp_Merging_and_Exiting.net.xml"/>
+		<route-files value="Ramp_Merging_and_Exiting.rou.xml"/>
+		
+	</input>
+	<time>
+		<begin value="0"/>
+		<end value="200"/>
+	</time>
+</configuration>

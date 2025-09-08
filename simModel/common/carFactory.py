@@ -1,5 +1,11 @@
 """
-功能：创建仿真平台上的车辆
+功能：创建LimSim仿真平台上的车辆(偏向可视化)
+Vehicle：
+    - 仿真基础 ：提供SUMO仿真环境中的基本车辆功能
+    - 数据存储 ：存储车辆的历史轨迹数据（位置、速度、加速度等）
+    - SUMO接口 ：直接与SUMO/traci交互
+    - 路径管理 ：处理车辆的路径规划和车道选择
+    - 可视化支持 ：支持在GUI中绘制车辆和轨迹
 """
 
 from __future__ import annotations
@@ -18,8 +24,7 @@ from simModel.common.networkBuild import NetworkBuild, Rebuild
 from utils.simBase import CoordTF, deduceEdge
 from utils.trajectory import Trajectory
 from utils.roadgraph import NormalLane, JunctionLane
-from simModel.common.vehicle_communication import HvCommunicator, RvCommunicator, get_communication_manager
-
+from trafficManager.common.vehicle_communication import CommunicationManager,VehicleCommunicator
 
 class Vehicle:# 定义车辆类别
     def __init__(self, id: str) -> None:
@@ -51,6 +56,7 @@ class Vehicle:# 定义车辆类别
         self.noChange: float = 5.0 # 存储车辆不换道距离
         self.plannedTrajectory: Trajectory = None # 存储车辆计划轨迹
         self.dbTrajectory: Trajectory = None # 存储车辆数据库轨迹
+        self.stop_info = []  # 7.20：添加单车停车信息存储列表
 
     # LLR: lane-level route
     # 获取车道级别路径
@@ -233,19 +239,19 @@ class Vehicle:# 定义车辆类别
                 output = output | self.LLRDict[self.edgeID]['changeLanes']
                 output = output | self.LLRDict[self.edgeID]['junctionLanes']
                 return output
-
+    
     # entry control mode and control vehicles
     # used for real-time simulation mode.
     # 进入控制模式并控制车辆
     # 用于实时仿真模式
     def controlSelf(
         self, centerx: float, centery: float,
-        yaw: float, speed: float, accel: float,stop_flag: bool
+        yaw: float, speed: float, accel: float, stop_flag: bool
     ):
         x = centerx + (self.length / 2) * cos(yaw)
         y = centery + (self.length / 2) * sin(yaw)
-        # x, y = centerx, centery
         angle = (pi / 2 - yaw) * 180 / pi
+        
         if self._iscontroled:
             traci.vehicle.moveToXY(self.id, '', -1, x, y,
                                    angle=angle, keepRoute=2)
@@ -256,23 +262,26 @@ class Vehicle:# 定义车辆类别
             else:
                 traci.vehicle.setAccel(self.id, self.maxAccel)
                 traci.vehicle.setDecel(self.id, -accel)
-            # 6.16:假设存在一个停车标记属性 stop_flag 用于判断是否停车
+            # 7.17: 当stop_flag为True时触发紧急停车流程
+            # 尝试获取车辆的停止状态
+            # print(traci.vehicle.getStopState(self.id)) 
+
             if stop_flag:
-                traci.vehicle.setStop(self.id, self.laneID, self.lanePos)
-            else:
-                traci.vehicle.setLaneChangeMode(self.id, 0)
-                traci.vehicle.setSpeedMode(self.id, 0)
+                self.emergency_stop()  # 7.17：调用紧急停车方法
+        else:
+            traci.vehicle.setLaneChangeMode(self.id, 0)
+            traci.vehicle.setSpeedMode(self.id, 0)
             traci.vehicle.moveToXY(self.id, '', -1, x, y,
                                    angle=angle, keepRoute=2)
             traci.vehicle.setSpeed(self.id, speed)
-            if accel >= 0:
+            if accel >= 0: # 如果车辆加速度大于等于0
                 traci.vehicle.setAccel(self.id, accel)
                 traci.vehicle.setDecel(self.id, self.maxDecel)
             else:
                 traci.vehicle.setAccel(self.id, self.maxAccel)
                 traci.vehicle.setDecel(self.id, -accel)
-            self._iscontroled = 1
-
+        
+        self._iscontroled = 1
     # exit control mode and set self.iscontroled = 0
     # 退出控制模式并设置self.iscontroled = 0
     def exitControlMode(self):
@@ -318,17 +327,13 @@ class Vehicle:# 定义车辆类别
 
     # 导出车辆信息to字典
     def export2Dict(self, nb: NetworkBuild | Rebuild) -> dict:
-        # 5.21：需要加上停车信息！！
         return {
             'id': self.id, 'vTypeID': self.vTypeID,
             'xQ': self.xQ, 'yQ': self.yQ, 'yawQ': self.yawQ,
             'speedQ': self.speedQ, 'accelQ': self.accelQ,
             'laneIDQ': self.laneIDQ, 'lanePosQ': self.lanePosQ,
             'availableLanes': self.availableLanes(nb),
-            # 'stop_lane': self.stop_lane,
-            # 'stop_pos': self.stop_pos,
-            # 'stop_until': self.stop_until
-
+            'stop_info': self.stop_info,  # 7.21 添加停车信息
         }
 
     # 绘制车辆
@@ -488,17 +493,45 @@ class Vehicle:# 定义车辆类别
             self.id, self.x, self.y,
             self.yaw, self.speed, self.accel, self.vTypeID
         )
+    
+    # # 通信层
+    # # 25.8.16 新增方法，初始化车辆通信器
+    # def init_communication(self, communication_manager: CommunicationManager, if_egoCar: bool = False):
+    #     """初始化车辆通信器"""
+    #     self.if_egoCar=if_egoCar
+    #     self.communication_manager = communication_manager
+    #     # 根据车辆ID类型初始化对应通信器
+    #     self.communicator = VehicleCommunicator(self.id, self.communication_manager,self.if_egoCar) # 初始化RV通信器
+    #     self.communicator.vehicle = self
+        
+    def set_stop_info(self, stops):
+        """设置车辆停车信息"""
+        self.stop_info = stops
+        
+    # def apply_stop_info(self):
+    #     """应用停车信息"""
+    #     if self.stop_info:
+    #         # 这里可以实现根据停车信息执行停车的逻辑
+    #         for stop in self.stop_info:
+    #             # 示例：如果当前位置接近停车位置，则执行停车
+    #             if hasattr(self, 'lanePos') and abs(self.lanePos - stop['end_pos']) < 5.0:
+    #                 self.emergency_stop()
+    #                 break
 
 # 定义Ego Car类
 class egoCar(Vehicle):
     def __init__(
-        self, id: str, deArea: float = 50, sceMargin: float = 20
+        self,
+        id: str,
+        deArea: float = 50.0,  # 默认检测区域半径
+        sceMargin: float = 20.0  # 默认场景边缘距离
     ) -> None:
+        # 只传递id参数给父类
         super().__init__(id)
-        # detection area
-        self.deArea = deArea # 检测区域半径
-        self.sceMargin = sceMargin # 场景边缘距离
-    
+        self.deArea = deArea  # 检测区域半径
+        self.sceMargin = sceMargin  # 场景边缘距离
+        self.id = id # 确保id属性正确赋值
+
     # 在GUI中绘制自车的检测区域（黄色半透明圆形）
     def plotdeArea(self, node: dpg.node, ex: float, ey: float, ctf: CoordTF):
         cx, cy = ctf.dpgCoord(self.x, self.y, ex, ey)
@@ -517,7 +550,7 @@ class egoCar(Vehicle):
         #     parent=node
         #     )
 
-
+# 仿真中的虚拟障碍物或区域标记
 class DummyVehicle:
     def __init__(self, x: float, y: float, radius: float) -> None:
         self.x = x
@@ -542,24 +575,3 @@ class DummyVehicle:
             fill=(243, 156, 18, 20),
             parent=node
         )
-        
-    # 7.15：添加车辆通信器
-    def init_communication(self):
-        """初始化车辆通信器"""
-        comm_manager = get_communication_manager()
-        # 判断是否为自车（这里假设ID为'HV'的是自车，可以根据实际情况修改）
-        if self.id == 'HV':
-            self.communicator = HvCommunicator(self.id, comm_manager)
-        else:
-            self.communicator = RvCommunicator(self.id, comm_manager)
-        
-        # 将车辆实例关联到通信器
-        self.communicator.vehicle = self
-
-    def emergency_stop(self):
-        """执行紧急停车并发送消息"""
-        # 执行紧急停车逻辑
-        traci.vehicle.setStop(self.id, self.laneID, self.lanePos)
-        # 发送紧急停车消息
-        if hasattr(self, 'communicator'):
-            self.communicator.send_emergency_stop_message()

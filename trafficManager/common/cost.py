@@ -6,7 +6,7 @@ stop, and lane change costs. The module also provides a main function to run the
 from typing import Union
 import numpy as np
 import obstacle_cost
-from trafficManager.common.vehicle import Vehicle
+from trafficManager.common.vehicle import control_Vehicle
 from utils.cubic_spline import Spline2D
 from utils.obstacles import ObsType
 from utils.trajectory import Trajectory
@@ -68,7 +68,7 @@ def time(trajectory: Trajectory, weight_config: dict) -> float:
     return weight_config["W_T"] * trajectory.states[-1].t
 
 
-def obs(vehicle: Vehicle, trajectory: Trajectory,
+def obs(vehicle: control_Vehicle, trajectory: Trajectory,
         obs_list: list, config: dict, offset_frame:int = 0 ) -> float:
     """
     Calculate the obstacle cost of a given trajectory.

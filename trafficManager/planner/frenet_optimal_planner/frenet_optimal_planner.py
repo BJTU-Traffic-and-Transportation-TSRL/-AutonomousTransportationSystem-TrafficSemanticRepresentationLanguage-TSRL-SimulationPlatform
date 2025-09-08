@@ -69,24 +69,25 @@ def calc_stop_path(current_state, decel, T, dt, config):
     s_d = current_state.s_d
     d_d = current_state.d_d
     while True:
-        #Decomposition decel along s_d and d_d
+        #Decomposition decel along s_d and d_d（三角形相似原理）
         s_dd = decel * s_d / np.sqrt(s_d**2 + d_d**2)
         d_dd = decel * d_d / np.sqrt(s_d**2 + d_d**2)
         stop_path.states.append(
             State(t=t, s=s, d=d, s_d=s_d, d_d=d_d, s_dd=s_dd))
-        if s_d <= 1e-1:
+        if s_d <= 1e-1: # 如果横向速度足够小
             while len(stop_path.states) < T / dt:
                 t += dt
                 stop_path.states.append(State(t=t, s=s, d=d, s_d=s_d, d_d=d_d))
             break
+        # 更新状态数据
         t += dt
         s += s_d * dt
         d += d_d * dt
         s_d += s_dd * dt
         d_d += d_dd * dt
-        if d_d < 0:  
+        if d_d < 0: # 如果纵向速度<0
             d_d = 1e-3
-        if s_d < 0:
+        if s_d < 0: # 如果横向速度<0
             sqrt_sd = np.sqrt(s_d**2 + d_d**2)
             s_d= 1e-3 * s_d / sqrt_sd
             d_d= 1e-3 * d_d / sqrt_sd

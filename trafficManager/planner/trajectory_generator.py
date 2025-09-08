@@ -11,7 +11,7 @@ import math
 from typing import List
 import numpy as np
 
-from common.vehicle import Vehicle
+from common.vehicle import control_Vehicle
 from common import cost
 
 from utils.roadgraph import AbstractLane, JunctionLane, RoadGraph,NormalLane
@@ -46,7 +46,7 @@ def check_path(vehicle, path):
 
 # 车道变换轨迹生成器
 def lanechange_trajectory_generator(
-    vehicle: Vehicle,
+    vehicle: control_Vehicle,
     target_lane: AbstractLane,
     obs_list,
     config,
@@ -125,7 +125,7 @@ def lanechange_trajectory_generator(
     return stop_path
 
 # 停止轨迹生成器
-def stop_trajectory_generator(vehicle: Vehicle,
+def stop_trajectory_generator(vehicle: control_Vehicle,
                               lanes: List[AbstractLane],
                               obs_list: List[Obstacle],
                               roadgraph: RoadGraph,
@@ -139,10 +139,13 @@ def stop_trajectory_generator(vehicle: Vehicle,
     dt = config["DT"] # 时间步长
     max_acc = vehicle.max_accel # 最大加速度
     car_length = vehicle.length # 车辆长度
-    
-    # Step 1: find the right stopping position
-    # 计算车辆停止位置
+    # # 8.4 如果stop_flag=True,说明是主动停车，障碍物为Others
+    # if vehicle.current_state.stop_flag:
+    #     obs_list = [obs for obs in obs_list if obs.type == ObsType.OTHER]
     """
+    Step 1: find the right stopping position
+    计算车辆停止位置
+
     current_state.s：车辆当前的纵向位置（即车辆在车道上的当前位置）。
     course_spline.s[-1]：当前车道曲线的终点位置（即车道的总长度）。
     current_state.s_d：车辆当前的纵向速度（即车辆沿车道方向的速度）。
@@ -182,7 +185,7 @@ def stop_trajectory_generator(vehicle: Vehicle,
                 min_s = min(min_s, obs_s - obs.shape.length / 2 - car_length)
         elif obs.type == ObsType.CAR: # 如果属于车辆
             if isinstance(current_lane, JunctionLane):
-                # check if in same junction
+                # check if in same junction 如果在交叉口
                 veh_junction_id = vehicle.lane_id.split("_")[0]
                 obs_junction_id = obs.lane_id.split("_")[0]
                 nextlane_id = current_lane.next_lane_id
@@ -258,10 +261,22 @@ def stop_trajectory_generator(vehicle: Vehicle,
                             - car_length / 2
                             - 2.0,
                         )
-    # Step 2: 
+
+    # 8.4 排除在障碍物的影响下，如果stop_flag=True,说明是主动停车,且到达目标车道
+    if vehicle.current_state.stop_flag and current_lane.id == vehicle.stop_lane:
+        # 最小停车距离计算（基于当前速度）
+        min_s = max(vehicle.stop_pos , 0.5 , (vehicle.current_state.s_d ** 2) / (2 * abs(vehicle.max_decel)))
+    """
+    Step 2: 
+    第二步：根据最小距离和当前速度，判断是否需要紧急停车
+    """
     path = Trajectory()
     if (current_state.vel <= 1.0 and
-        (min_s - current_state.s) <= car_length):  # already stopped, keep it
+        (min_s - current_state.s) <= car_length):  
+        """
+        already stopped, keep it
+        情况1：车辆已经停止
+        """
         logging.debug(f"Vehicle {vehicle.id} Already stopped")
         path = Trajectory()
         for t in np.arange(0, course_t, dt):
@@ -274,7 +289,11 @@ def stop_trajectory_generator(vehicle: Vehicle,
             cost.jerk(path, config["weights"]) * dt)
         return path
     if ((min_s - current_state.s) >
-            current_state.s_d * course_t / 1.5):  # no need to stop
+            current_state.s_d * course_t / 1.5):  
+        """
+        no need to stop
+        情况2：车辆不需要停车
+        """
         logging.debug(f"Vehicle {vehicle.id} No need to stop")
         if (min_s - current_state.s) < 5.0 / 3.6 * course_t:
             target_s = min_s
@@ -302,8 +321,19 @@ def stop_trajectory_generator(vehicle: Vehicle,
             cost.jerk(path, config["weights"]) * dt)
         return path
     elif (min_s - current_state.s) < max(current_state.s_d**2 / (2 * max_acc),
-                                         car_length / 4):  # need emergency stop
-        logging.debug(f"Vehicle {vehicle.id} Emergency Brake")
+                                         car_length / 4):  
+        """
+        need emergency stop
+        情况3：需要立刻停止
+        """
+        if redLight:
+            # 8.18 车辆写入互操作语言：红灯停止
+            vehicle.communicator.send(f"Redlight({vehicle.id})")
+        else:
+            # 8.16 车辆写入互操作语言：紧急停止
+            logging.debug(f"Vehicle {vehicle.id} Emergency Brake")
+            vehicle.communicator.send(f"EmergencyStation({vehicle.id});")
+        # 8.4 进入查看
         path = frenet_optimal_planner.calc_stop_path(current_state,
                                                      vehicle.max_decel,
                                                      course_t, dt, config)
@@ -316,7 +346,10 @@ def stop_trajectory_generator(vehicle: Vehicle,
             cost.stop(config["weights"]))
         return path
 
-    # normal stop
+        """
+        normal stop
+        情况4：正常停止
+        """
     logging.debug(f"Vehicle {vehicle.id} Normal stopping")
     if (min_s - current_state.s) < car_length:
         sample_d = [current_state.d]
@@ -351,7 +384,7 @@ def stop_trajectory_generator(vehicle: Vehicle,
     return best_path
 
 
-def lanekeeping_trajectory_generator(vehicle: Vehicle,
+def lanekeeping_trajectory_generator(vehicle: control_Vehicle,
                                      lanes: List[AbstractLane], obs_list,
                                      config, T) -> Trajectory:
     road_width = lanes[0].width
@@ -455,7 +488,7 @@ def lanekeeping_trajectory_generator(vehicle: Vehicle,
 
 
 def decision_trajectory_generator(
-    vehicle: Vehicle,
+    vehicle: control_Vehicle,
     lanes: List[AbstractLane],
     obs_list,
     config,

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
 from common.observation import Observation
-from common.vehicle import Behaviour, Vehicle
+from common.vehicle import Behaviour, control_Vehicle
 from predictor.abstract_predictor import Prediction
 
 from utils.roadgraph import RoadGraph

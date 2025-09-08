@@ -11,7 +11,7 @@ import math
 import random
 
 import numpy as np
-from common.vehicle import State, Vehicle, Behaviour, VehicleType
+from common.vehicle import State, control_Vehicle, Behaviour, VehicleType
 from common.obstacle_cost import check_collsion_new
 from utils.roadgraph import RoadGraph, NormalLane, JunctionLane
 from utils import data_copy
@@ -337,7 +337,7 @@ class FlowState:
         return max(0.0, min(1.0, total_reward))
 
     def _check_collision(
-        self, veh1: Vehicle, state1: State, veh2: Vehicle, state2: State
+        self, veh1: control_Vehicle, state1: State, veh2: control_Vehicle, state2: State
     ) -> bool:
         if veh1 == veh2:
             print("Decision vehicle has already decision?!")

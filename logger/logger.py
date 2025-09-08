@@ -58,3 +58,23 @@ def get_logger(module_name: str) -> logging.Logger:
 
     """
     return logging.getLogger(APP_LOGGER_NAME).getChild(module_name)
+
+
+class Logger:
+    # 修改构造方法，添加必要参数
+    def __init__(self, name: str = "APP", level: str = "DEBUG", file_name: str = "app_debug.log", use_stdout: bool = False):
+        self.name = name
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        formatter = logging.Formatter("[%(levelname)-s]:%(filename)s %(funcName)s [Line %(lineno)s] - %(message)s")
+
+        # 输出到文件（修正 `logger` 变量为 `self.logger`）
+        file_handler = logging.FileHandler(file_name, mode='w')
+        file_handler.setFormatter(formatter)
+        self.logger.addHandler(file_handler)
+
+        # 输出到标准输出
+        if use_stdout:
+            stdout_handler = logging.StreamHandler(sys.stdout)
+            stdout_handler.setFormatter(formatter)
+            self.logger.addHandler(stdout_handler)

@@ -20,7 +20,7 @@ from predictor.abstract_predictor import Prediction
 
 from utils.roadgraph import RoadGraph, JunctionLane, NormalLane
 from utils.trajectory import State
-from common.vehicle import Behaviour, Vehicle, VehicleType
+from common.vehicle import Behaviour, control_Vehicle, VehicleType
 from mcts import mcts
 from mcts.flow_state import FlowState
 
@@ -200,26 +200,34 @@ class MultiDecisionMaker(AbstractMultiDecisionMaker):
         """
         Implement decision maker here
         Step 0: Determine if there are any vehicles that require decision-making.
+        Step 0: 判断场景中是否有车辆需要决策
         Step 1: Extract vehicles with potential for interaction in the judge_interactions step.
+        Step 1: 提取场景中可能发生交互的车辆
         Step 2: Group vehicles with interaction potential, setting a maximum number of vehicles per 
                 decision group and establishing priority relationships between decision groups.
+        Step 2: 对提取到的车辆进行分组，每个组内车辆之间有潜在交互关系，每个组内车辆数量不超过max_group_size    
         Step 3: Perform MCTS decision-making on each decision group in sequence, searching for 
                 the best decision sequence within each group.
+        Step 3: 对每个决策组进行MCTS决策，搜索每个组内的最优决策序列
         """
         # Step 0: Determine if there are any vehicles that require decision-making.
+        # Step 0: 判断场景中是否有车辆需要决策
         if not observation.vehicles:
             print("[ERROR] DecisionMaker: No vehicles to make decision.")
             return MultiDecision()
 
         # Step 1: Extract vehicles with potential for interaction in the judge_interactions step.
+        # Step 1: 提取场景中可能发生交互的车辆
         interaction = self._judge_interactions(observation, road_graph)
 
         # Step 2: Group vehicles with interaction potential, setting a maximum number of
         # vehicles per decision group and establishing priority relationships between decision groups.
+        # Step 2: 对提取到的车辆进行分组，每个组内车辆之间有潜在交互关系，每个组内车辆数量不超过max_group_size
         group_info = self._grouping(observation, interaction)
 
         # Step 3: Perform MCTS decision-making on each decision group in sequence,
         # searching for the best decision sequence within each group.
+        # Step 3: 对每个决策组进行MCTS决策，搜索每个组内的最优决策序列
         complete_decisions = MultiDecision()
         for group_idx, vehs_in_group in group_info.items():
             # decide for group with group_idx

@@ -83,5 +83,13 @@ def run_model(
 
 
 if __name__ == "__main__":
-    net_file, rou_file = file_paths['CarlaTown05']
-    run_model(net_file, rou_file, ego_veh_id="61", carla_cosim=False)
+    # 添加一条测试日志
+    log.info("ModelExample Starts")
+    try:
+        net_file, rou_file = file_paths['CarlaTown05']
+        run_model(net_file, rou_file, ego_veh_id="61", carla_cosim=False)
+    except Exception as e:
+        log.exception("ModelExample Error")
+        raise
+    # 程序正常结束时也记录一条日志
+    log.info("ModelExample Ends")

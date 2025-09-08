@@ -11,7 +11,7 @@ Copyright (c) 2022 by PJLab, All Rights Reserved.
 import math
 import numpy as np
 from typing import Tuple, Optional
-from trafficManager.common.vehicle import Vehicle
+from trafficManager.common.vehicle import control_Vehicle
 
 from utils.trajectory import Trajectory
 
@@ -103,7 +103,7 @@ def check_collsion_new(
         return False, obs_relative_corner[index][0]
 
 
-def calculate_static(vehicle: Vehicle, obs: dict, 
+def calculate_static(vehicle: control_Vehicle, obs: dict, 
                      trajectory: Trajectory, config: dict) -> float:
     """
     Calculate the static cost of the vehicle.
@@ -161,7 +161,8 @@ def calculate_static(vehicle: Vehicle, obs: dict,
     return cost
 
 
-def calculate_pedestrian(vehicle: Vehicle,
+def calculate_pedestrian(vehicle: control_Vehicle,
+
                          obs: dict, trajectory: Trajectory,
                          config: dict) -> float:
     """
@@ -236,7 +237,7 @@ def calculate_pedestrian(vehicle: Vehicle,
     return cost
 
 
-def calculate_car(vehicle: Vehicle, obs: dict, 
+def calculate_car(vehicle: control_Vehicle, obs: dict, 
                   trajectory: Trajectory, config: dict, offset_frame: int) -> float:
     """
     Calculate the car cost of the vehicle.

@@ -7,6 +7,7 @@ from __future__ import annotations
 from utils.simBase import CoordTF, deduceEdge, MapCoordTF
 from utils.cubic_spline import Spline2D
 from utils.roadgraph import Junction, Edge, NormalLane, OVERLAP_DISTANCE, JunctionLane, TlLogic
+from simModel.common.facilitiesFactory import RSU,RSU_detector # 在networkBuild.py文件的导入部分添加RSU导入
 from queue import Queue
 import sqlite3
 from threading import Thread
@@ -22,21 +23,25 @@ class geoHash:
         self.id = id
         self.edges: set[str] = set()
         self.junctions: set[str] = set()
+        self.rsus :set[str] = set()  # 9.6 添加RSU集合
 
 
 class NetworkBuild:
     def __init__(self,
                  dataBase: str,
                  networkFile: str,
-                 obsFile: str = None
+                 obsFile: str = None,
+                 addFile: str = None  # 9.7 添加add文件参数
                  ) -> None:
         self.dataBase = dataBase
         self.networkFile = networkFile
-        self.obsFile = obsFile
+        self.obsFile = obsFile # 未被使用过
+        self.addFile = addFile  # 9.7 添加addFile参数
         self.edges: dict[str, Edge] = {}
         self.lanes: dict[str, NormalLane] = {}
         self.junctions: dict[str, Junction] = {}
         self.junctionLanes: dict[str, JunctionLane] = {}
+        self.rsus: dict[str, RSU] = {}  # 9.6 存储RSU对象
         self.tlLogics: dict[str, TlLogic] = {}
         # self.obstacles: dict[str, circleObs | rectangleObs] = {}
         self.dataQue = Queue()
@@ -319,6 +324,39 @@ class NetworkBuild:
                 'geohashINFO',
                 (ghx, ghy, ghEdges, ghJunctions), 'INSERT'
             ))
+        
+        # 9.6新增：解析add.xml文件中的RSU信息
+        if self.addFile:
+            try:
+                addTree = ET.parse(self.addFile)
+                addRoot = addTree.getroot()
+                for child in addRoot:
+                    if child.tag == 'poi' and child.attrib.get('id', '').startswith('RSU_'):
+                        # 解析RSU的投影信息
+                        rsu_id = child.attrib['id']
+                        rsu_x = float(child.attrib['x'])
+                        rsu_y = float(child.attrib['y'])
+                        rsu = RSU(rsu_id)
+                        rsu.x=rsu_x
+                        rsu.y=rsu_y
+                    elif child.tag == 'laneAreaDetector' and child.attrib.get('id', '').startswith('RSU_'):
+                        # 解析RSU的实际探测能力
+                        rsu_detector_id = child.attrib['id']
+                        rsu_detector_lane=child.attrib['lane']
+                        rsu_pos=float(child.attrib['pos'])
+                        rsu_detectlenth=float(child.attrib['length'])
+                        rsu_detectfreq=float(child.attrib['freq'])
+                        rsu_output=child.attrib['file']
+                        rsu_detector=RSU_detector(id=rsu_detector_id)
+                        rsu_detector.lane=rsu_detector_lane
+                        rsu_detector.pos=rsu_pos
+                        rsu_detector.detectlenth=rsu_detectlenth
+                        rsu_detector.detectfreq=rsu_detectfreq
+                        rsu_detector.output=rsu_output
+                        rsu.addDetector(rsu_detector)
+                self.addRSU(rsu)
+            except Exception as e:
+                print(f'Error parsing add.xml file: {str(e)}')
 
     def buildTopology(self):
         for eid, einfo in self.edges.items():
@@ -485,6 +523,193 @@ class NetworkBuild:
             self.plotMapEdge(inEdgeID, node, ctf)
         for outEdgeID in junction.outgoing_edges:
             self.plotMapEdge(outEdgeID, node, ctf)
+
+    def addRSU(self, rsu: RSU) -> None:
+        """9.6新增：添加RSU到网络，并更新geohash"""
+        self.rsus[rsu.id] = rsu
+        # 计算RSU所在的geohash网格
+        rsu_x, rsu_y = rsu.x, rsu.y
+        geox = int(rsu_x // 100)
+        geoy = int(rsu_y // 100)
+        # 添加到对应的geohash
+        gridID = (geox, geoy)
+        try:
+            geohash = self.geoHashes[gridID]
+        except KeyError:
+            geohash = geoHash(gridID)
+            self.geoHashes[gridID] = geohash
+        
+        geohash.rsus.add(rsu.id)
+
+    def getRSU(self, rsu_id: str) -> RSU:
+        """9.6新增：获取RSU对象"""
+        try:
+            return self.rsus[rsu_id]
+        except KeyError:
+            return None
+
+    def getRSUsInRange(self, center_x: float, center_y: float, radius: float) -> set[str]:
+        """9.6新增：获取指定范围内的RSU ID集合"""
+        rsu_ids = set()
+        
+        # 计算影响范围内的geohash网格
+        min_geox = int((center_x - radius) // 100)
+        max_geox = int((center_x + radius) // 100)
+        min_geoy = int((center_y - radius) // 100)
+        max_geoy = int((center_y + radius) // 100)
+    
+        # 遍历所有可能的geohash网格
+        for gx in range(min_geox, max_geox + 1):
+            for gy in range(min_geoy, max_geoy + 1):
+                gridID = (gx, gy)
+                try:
+                    geohash = self.geoHashes[gridID]
+                    rsu_ids |= geohash.rsus
+                except KeyError:
+                    continue
+        
+        # 进一步过滤在圆形范围内的RSU
+        final_rsu_ids = set()
+        for rsu_id in rsu_ids:
+            rsu = self.getRSU(rsu_id)
+            if rsu and sqrt(pow(rsu.xQ - center_x, 2) + pow(rsu.yQ - center_y, 2)) <= radius:
+                final_rsu_ids.add(rsu_id)
+        
+        return final_rsu_ids
+
+    def plotRSU(self, rsu_id: str, node: dpg.node, ex: float, ey: float, ctf: CoordTF):
+        """9.6新增：绘制单个RSU"""
+        rsu = self.getRSU(rsu_id)
+        if not rsu:
+            return
+        
+        # RSU中心坐标
+        center_x, center_y = rsu.x, rsu.y
+        
+        # RSU尺寸
+        length = rsu.length
+        width = rsu.width
+        
+        # 计算RSU的四个角点（矩形）
+        half_length = length / 2
+        half_width = width / 2
+        
+        # 创建RSU的矩形顶点
+        vertices = [
+            (center_x - half_length, center_y - half_width),
+            (center_x + half_length, center_y - half_width),
+            (center_x + half_length, center_y + half_width),
+            (center_x - half_length, center_y + half_width)
+        ]
+        
+        # 转换坐标到dearpygui坐标系
+        vertices_tf = [ctf.dpgCoord(v[0], v[1], ex, ey) for v in vertices]
+        
+        # 绘制RSU主体（蓝色矩形）
+        dpg.draw_polygon(
+            vertices_tf,
+            color=(0, 100, 255),  # 蓝色边框
+            thickness=2,
+            fill=(0, 100, 255, 100),  # 半透明蓝色填充
+            parent=node
+        )
+        
+        # 绘制RSU中心点
+        center_tf = ctf.dpgCoord(center_x, center_y, ex, ey)
+        dpg.draw_circle(
+            center_tf,
+            radius=3,
+            color=(255, 255, 255),
+            thickness=2,
+            fill=(0, 100, 255),
+            parent=node
+        )
+        
+        # 绘制RSU检测范围（圆形）
+        detect_radius = rsu.detectors[0].detectlenth
+        dpg.draw_circle(
+            center_tf,
+            radius=detect_radius * ctf.zoomScale,
+            color=(0, 100, 255, 150),
+            thickness=1,
+            parent=node
+        )
+        
+        # 添加RSU ID标签
+        label_pos = (center_tf[0], center_tf[1] - 15)
+        dpg.draw_text(
+            label_pos,
+            f"RSU-{rsu_id}",
+            color=(0, 0, 0),
+            size=12,
+            parent=node
+        )
+
+    def plotMapRSU(self, rsu_id: str, node: dpg.node, ctf: MapCoordTF):
+        """在地图模式下绘制RSU"""
+        rsu = self.rsus.get(rsu_id)
+        if not rsu:
+            return
+        
+        # 直接使用地图坐标
+        center_x, center_y = ctf.dpgCoord(rsu.x, rsu.y)
+        
+        # RSU尺寸
+        length = rsu.length
+        width = rsu.width
+        
+        # 计算绘制尺寸（考虑地图缩放）
+        draw_length = length * ctf.zoomScale
+        draw_width = width * ctf.zoomScale
+        
+        # 创建RSU的矩形顶点
+        half_length = draw_length / 2
+        half_width = draw_width / 2
+        
+        vertices = [
+            (center_x - half_length, center_y - half_width),
+            (center_x + half_length, center_y - half_width),
+            (center_x + half_length, center_y + half_width),
+            (center_x - half_length, center_y + half_width)
+        ]
+        
+        # 绘制RSU主体
+        dpg.draw_polygon(
+            vertices,
+            color=(0, 150, 255),
+            thickness=2,
+            fill=(0, 150, 255, 150),
+            parent=node
+        )
+        
+        # 绘制中心点
+        dpg.draw_circle(
+            (center_x, center_y),
+            radius=3,
+            color=(255, 255, 255),
+            thickness=2,
+            fill=(0, 150, 255),
+            parent=node
+        )
+        
+        # 绘制检测范围
+        detect_radius = rsu.detectors[0].detectlenth * ctf.zoomScale
+        dpg.draw_circle(
+            (center_x, center_y),
+            radius=detect_radius,
+            color=(0, 150, 255, 100),
+            thickness=1,
+            parent=node
+        )
+        
+        # 添加标签
+        dpg.draw_text(
+            (center_x, center_y - 20),
+            f"RSU-{rsu_id}",
+            color=(255, 255, 255),
+            size=12,
+            parent=node
+        )
 
 
 class Rebuild(NetworkBuild):

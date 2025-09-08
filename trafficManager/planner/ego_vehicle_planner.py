@@ -1,7 +1,7 @@
 import time
 
 from common.observation import Observation
-from common.vehicle import Behaviour, Vehicle
+from common.vehicle import Behaviour, control_Vehicle
 from decision_maker.abstract_decision_maker import EgoDecision, MultiDecision
 from trafficManager.planner.abstract_planner import AbstractEgoPlanner
 from predictor.abstract_predictor import Prediction
@@ -21,7 +21,7 @@ Ego自车轨迹规划
 
 class EgoPlanner(AbstractEgoPlanner):
     def plan(self,
-             ego_veh: Vehicle, # 当前车辆
+             ego_veh: control_Vehicle, # 当前车辆
              observation: Observation, # 观测
              roadgraph: RoadGraph, # 道路图
              prediction: Prediction, # 预测
@@ -102,6 +102,8 @@ class EgoPlanner(AbstractEgoPlanner):
                 ego_veh, lanes, obs_list, roadgraph, config, T,
             )
         elif ego_veh.behaviour == Behaviour.LCL:
+            # 8.27 新增：发送变道互操作语言
+            ego_veh.communicator.send(f"ChangeLane({ego_veh.id})")
             # Turn Left
             left_lane = roadgraph.get_lane_by_id(current_lane.left_lane())
             path = traj_generator.lanechange_trajectory_generator(
@@ -112,6 +114,8 @@ class EgoPlanner(AbstractEgoPlanner):
                 T,
             )
         elif ego_veh.behaviour == Behaviour.LCR:
+            # 8.27 新增：发送变道互操作语言
+            ego_veh.communicator.send(f"ChangeLane({ego_veh.id})")
             # Turn Right
             right_lane = roadgraph.get_lane_by_id(
                 current_lane.right_lane())

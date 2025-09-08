@@ -1,0 +1,17 @@
+<!-- rsu.add.xml -->
+<additional>
+  <!-- SUMO可视化   -->
+  <poi id="RSU_1" x="400" y="0" color="1,0,0" layer="5"/>
+  <!-- 检测区域 -->
+  <!--pos="400" length="20"表示以400为起点，向前20m路线长度内进行侦测，
+  检测到的车辆信息会被写入Vehicle_RSU_Interacting.out.xml文件中-->
+  <laneAreaDetector id="RSU_11" lane="main_0" pos="400" length="20" 
+                    freq="10" file="Vehicle_RSU_Interacting.out.xml" 
+                    friendlyPos="true"/>
+  <laneAreaDetector id="RSU_12" lane="main_1" pos="400" length="20" 
+                    freq="10" file="Vehicle_RSU_Interacting.out.xml" 
+                    friendlyPos="true"/>
+  <laneAreaDetector id="RSU_13" lane="main_2" pos="400" length="20" 
+                    freq="10" file="Vehicle_RSU_Interacting.out.xml" 
+                    friendlyPos="true"/>
+</additional>

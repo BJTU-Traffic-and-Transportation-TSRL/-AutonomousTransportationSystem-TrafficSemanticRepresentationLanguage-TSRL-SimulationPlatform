@@ -1,7 +1,15 @@
 """
 This module contains the Vehicle class and related functions for managing vehicles in a traffic simulation.
 翻译：
-这个模块包含Vehicle类和相关函数，用于管理交通模拟中的车辆。
+这个模块包含Vehicle类和相关函数，用于智能管理交通模拟中的车辆
+注意和simModel.carFactory.Vehicle的区别
+control_Vehicle类：
+    - 交通管理专用 ：为交通管理系统设计的车辆类
+    - 行为控制 ：包含详细的行为状态管理（如变道、停车、加速等）
+    - 决策支持 ：提供车辆行为决策的接口
+    - Frenet坐标系 ：支持Frenet坐标系下的车辆状态表示
+    - 通信功能 ：集成车辆间通信能力（V2V）
+
 Classes:
     Behaviour (IntEnum): Enum class for vehicle behavior.
     Vehicle: Represents a vehicle in the simulation.
@@ -13,6 +21,7 @@ Functions:
         Creates a Vehicle instance based on the last seen vehicle information.
     extract_vehicles(vehicles_info: dict, roadgraph: RoadGraph, lastseen_vehicles: dict, T: float, through_timestep: int, sumo_model) -> Tuple[Vehicle, Dict[int, Vehicle], Dict[int, Vehicle]]:
         Extracts vehicles from the provided information and returns them as separate dictionaries.
+
 """
 from copy import copy, deepcopy
 from enum import IntEnum, Enum
@@ -23,20 +32,22 @@ from trafficManager.common.coord_conversion import cartesian_to_frenet2D
 from utils.roadgraph import AbstractLane, JunctionLane, NormalLane, RoadGraph
 from utils.trajectory import State
 
+from trafficManager.common.vehicle_communication import CommunicationManager,VehicleCommunicator
+
 import logger
 
 logging = logger.get_logger(__name__)
 
 
 class Behaviour(IntEnum):
-    KL = 0
-    AC = 1
-    DC = 2
-    LCL = 3
-    LCR = 4
-    STOP = 5
-    IN_JUNCTION = 6
-    OVERTAKE = 7
+    KL = 0 # 保持车道
+    AC = 1 # 加速
+    DC = 2 # 减速
+    LCL = 3 # 变道左
+    LCR = 4 # 变道右
+    STOP = 5 # 停车
+    IN_JUNCTION = 6 # 进入 junction
+    OVERTAKE = 7 # 超车
     OTHER = 100
 
 
@@ -46,7 +57,7 @@ class VehicleType(str, Enum):
     OUT_OF_AOI = "Car_out_of_AoI"
 
 
-class Vehicle:
+class control_Vehicle():
     def __init__(self,
                  vehicle_id: int,
                  init_state: State = State(),
@@ -62,7 +73,13 @@ class Vehicle:
                  available_lanes: Dict[int, Any] = {},
                  stop_lane: list[str] = None,
                  stop_pos: deque = deque(maxlen=100),
-                 stop_until: deque = deque(maxlen=100)) -> None:
+                 stop_until: deque = deque(maxlen=100),
+                 if_traffic_communication: bool = False,
+                 if_ego: bool = False,
+                 communication_manager: CommunicationManager = None) -> None:
+
+
+
         """
         Initialize a Vehicle instance.
 
@@ -79,6 +96,7 @@ class Vehicle:
             max_decel (float, optional): Maximum deceleration of the vehicle. Defaults to -3.0.
             max_speed (float, optional): Maximum speed of the vehicle. Defaults to 50.0.
             available_lanes (Dict[int, Any], optional): Available lanes for the vehicle. Defaults to {}.
+            if_traffic_communication (bool, optional): Whether the vehicle has traffic communication enabled. Defaults to False.
         """
         self.id = vehicle_id
         self._current_state = init_state
@@ -95,6 +113,15 @@ class Vehicle:
         self.stop_lane = stop_lane
         self.stop_pos = stop_pos
         self.stop_until = stop_until
+        # 8.12 添加前车状态
+        self.front_vehicle_status = Behaviour.KL
+        # 8.19 新增是否开启通信功能的控制参数
+        self.if_traffic_communication = if_traffic_communication
+        if if_traffic_communication:
+            self.communication_manager=communication_manager
+            self.communicator = VehicleCommunicator(self.id, self.communication_manager, if_ego)
+
+
 
     @property
     def current_state(self) -> State:
@@ -115,6 +142,16 @@ class Vehicle:
             state (State): The new state of the vehicle.
         """
         self._current_state = state
+    
+    # 通信层
+    # 25.8.16 新增方法，初始化车辆通信器
+    def init_communication(self, communication_manager: CommunicationManager, if_egoCar: bool = False):
+        """初始化车辆通信器"""
+        self.if_egoCar=if_egoCar
+        self.communication_manager = communication_manager
+        # 根据车辆ID类型初始化对应通信器
+        self.communicator = VehicleCommunicator(self.id, self.communication_manager,self.if_egoCar) # 初始化RV通信器
+        self.communicator.vehicle = self
     
     # 获取车辆在车道上的状态
     def get_state_in_lane(self, lane) -> State:
@@ -147,14 +184,6 @@ class Vehicle:
         self.current_state = self.get_state_in_lane(lane) # 更新车辆状态
         self.behaviour = Behaviour.KL # 更新车辆行为
 
-    # 5.26 添加车辆紧急停止
-    # def stop_vehicle(self, lane: AbstractLane) -> None:
-    #     """
-    #     5.26 添加：车辆紧急停止方法（状态改变函数）
-    #     """
-    #     self.lane_id = lane.id # 更新车辆车道ID
-    #     self.current_state = self.get_state_in_lane(lane) # 更新车辆状态
-    #     self.behaviour = Behaviour.STOP # 更新车辆行为
 
     # 获取车辆字符串表示
     def __repr__(self) -> str:
@@ -171,7 +200,8 @@ class Vehicle:
     def update_behavior_with_manual_input(self, manual_input: str,
                                           current_lane: AbstractLane):
         """use keyboard to send lane change command to ego car.
-
+        中文翻译：
+        使用键盘发送车道变换命令给Ego车。
         Args:
             manual_input (str): the left turn or right turn command
             current_lane (AbstractLane): the lane that ego car lies on
@@ -194,6 +224,7 @@ class Vehicle:
                 f"Key command Vehicle {self.id} to change Right lane")
 
     def update_behaviour(self, roadgraph: RoadGraph, manual_input: str = None) -> None:
+
         """Update the behaviour of a vehicle.
 
         Args:
@@ -203,11 +234,18 @@ class Vehicle:
         logging.debug(
             f"Vehicle {self.id} is in lane {self.lane_id}, "
             f"In available_lanes? {current_lane.id in self.available_lanes}")
-
+        # 7.19：添加车辆位置信息日志
+        logging.info(f"Vehicle {self.id} position: x={self.current_state.x}, y={self.current_state.y}, lane_id={self.lane_id}")
+        # 使用输入指令控制ego车辆
         self.update_behavior_with_manual_input(manual_input, current_lane)
+        # 8.4 如果车辆在stop_lane上且未到达停车位置
+        if self.lane_id == self.stop_lane and self.current_state.s < self.stop_pos:
+            self.behaviour = Behaviour.STOP
 
-        # Lane change behavior
-        if isinstance(current_lane, NormalLane):
+        # Lane change behavior··
+        # 车辆变道
+        if isinstance(current_lane, NormalLane): # 如果当前车辆在普通车道上
+            # 如果车辆行为是变道左
             if self.behaviour == Behaviour.LCL:
                 left_lane_id = current_lane.left_lane()
                 left_lane = roadgraph.get_lane_by_id(left_lane_id)
@@ -215,16 +253,19 @@ class Vehicle:
                 if state.d > -left_lane.width / 2:
                     self.change_to_lane(left_lane)
 
-            elif self.behaviour == Behaviour.LCR:
+            # 如果车辆行为是变道右
+            elif self.behaviour ==Behaviour.LCR:
                 right_lane_id = current_lane.right_lane()
                 right_lane = roadgraph.get_lane_by_id(right_lane_id)
                 state = self.get_state_in_lane(right_lane)
                 if state.d < right_lane.width / 2:
                     self.change_to_lane(right_lane)
-
+            # 如果车辆行为是进入 junction
             elif self.behaviour == Behaviour.IN_JUNCTION:
                 self.behaviour = Behaviour.KL
-            elif current_lane.id not in self.available_lanes:
+                        
+            # 如果当前车道不在可用车道中，或者前车处于停止状态，则需要进行变道   
+            elif current_lane.id not in self.available_lanes or self.front_vehicle_status == Behaviour.STOP:  
                 logging.debug(
                     f"Vehicle {self.id} need lane-change, "
                     f"since {self.lane_id} not in available_lanes {self.available_lanes}"
@@ -261,6 +302,7 @@ class Vehicle:
                     )
 
         # in junction behaviour
+        # 车辆进入 junction
         if self.current_state.s > current_lane.course_spline.s[-1] - 0.2:
             if isinstance(current_lane, NormalLane):
                 next_lane = roadgraph.get_available_next_lane(
@@ -284,11 +326,31 @@ class Vehicle:
                 logging.info(f"Vehicle {self.id} is in {self.behaviour}")
             else:  # out junction
                 self.behaviour = Behaviour.KL
+    
+    def set_stop_info(self, stops):
+        """设置车辆停车信息"""
+        self.stop_info = stops
+
+    # # 8.16 继承父类方法：初始化车辆通信器
+    # def init_communication(self, communication_manager: CommunicationManager):
+    #     """初始化车辆通信器"""
+    #     # 根据车辆类型初始化对应通信器
+    #     if self.vtype == VehicleType.EGO:
+    #         from simModel.common.vehicle_communication import HvCommunicator
+    #         self.communicator = HvCommunicator(str(self.id), communication_manager)
+    #     else:
+    #         self.communicator = RvCommunicator(str(self.id), communication_manager)
+    #     self.communicator.vehicle = self
 
 
 def create_vehicle(vehicle_info: Dict, roadgraph: RoadGraph, vtype_info: Any,
                    T,
-                   vtype: VehicleType) -> Vehicle:
+                   vtype: VehicleType,
+                   if_traffic_communication: bool = False,
+                   if_ego: bool = False,
+                   communication_manager: CommunicationManager = None) -> control_Vehicle:
+
+
     """
     Creates a new Vehicle instance based on the provided information.
 
@@ -309,6 +371,10 @@ def create_vehicle(vehicle_info: Dict, roadgraph: RoadGraph, vtype_info: Any,
     pos_y = vehicle_info["yQ"][-1]
     yaw = vehicle_info["yawQ"][-1]
     speed = vehicle_info["speedQ"][-1]
+    # 8.3 添加停车信息传递
+    stop_lane = vehicle_info["stop_info"][0]['lane'] if vehicle_info["stop_info"] else None
+    stop_pos = vehicle_info["stop_info"][0]['end_pos'] if vehicle_info["stop_info"] else None
+    stop_until= vehicle_info["stop_info"][0]['until'] if vehicle_info["stop_info"] else None
     # acc = vehicle_info["accelQ"].pop()
     acc = 0
 
@@ -324,7 +390,7 @@ def create_vehicle(vehicle_info: Dict, roadgraph: RoadGraph, vtype_info: Any,
                        s_d=speed,
                        s_dd=acc,
                        t=T)
-    return Vehicle(
+    v_new=control_Vehicle(
         vehicle_id=vehicle_info["id"],
         init_state=init_state,
         lane_id=lane_id,
@@ -337,7 +403,15 @@ def create_vehicle(vehicle_info: Dict, roadgraph: RoadGraph, vtype_info: Any,
         max_decel=-vtype_info.maxDecel,
         max_speed=vtype_info.maxSpeed,
         available_lanes=available_lanes,
+        stop_lane=stop_lane,
+        stop_pos=stop_pos,
+        stop_until=stop_until,
+        if_traffic_communication=if_traffic_communication,
+        if_ego=if_ego,
+        communication_manager=communication_manager
     )
+
+    return v_new
 
 
 def find_lane_position(lane_id: str, roadgraph: RoadGraph,
@@ -380,9 +454,10 @@ def find_lane_position(lane_id: str, roadgraph: RoadGraph,
     return None, None, None
 
 
-def create_vehicle_lastseen(vehicle_info: Dict, lastseen_vehicle: Vehicle,
+def create_vehicle_lastseen(vehicle_info: Dict, lastseen_vehicle: control_Vehicle,
                             roadgraph: RoadGraph, T: float, last_state: State,
-                            vtype: VehicleType, sim_mode: str) -> Vehicle:
+                            vtype: VehicleType, sim_mode: str) -> control_Vehicle:
+
     """
     Creates a Vehicle instance based on the last seen vehicle information.
 
@@ -397,13 +472,19 @@ def create_vehicle_lastseen(vehicle_info: Dict, lastseen_vehicle: Vehicle,
     Returns:
         Vehicle: A new Vehicle instance with updated information.
     """
-    vehicle = copy(lastseen_vehicle)
+    vehicle = copy(lastseen_vehicle) # 复制lastseen_vehicle
     vehicle.current_state = last_state
     vehicle.current_state.t = T
     vehicle.current_state.x = vehicle_info["xQ"][-1]
     vehicle.current_state.y = vehicle_info["yQ"][-1]
     vehicle.vtype = vtype
     vehicle.available_lanes = vehicle_info["availableLanes"]
+    # 8.3 添加停车信息传递
+    if vehicle_info["stop_info"]:
+        vehicle.stop_lane = vehicle_info["stop_info"][0]['lane']
+        vehicle.stop_pos = vehicle_info["stop_info"][0]['end_pos']
+        vehicle.stop_until= vehicle_info["stop_info"][0]['until']
+
     lane_id = vehicle_info["laneIDQ"][-1]
     # in some junctions, sumo will not find any lane_id for the vehicle
     while lane_id == "":
@@ -453,3 +534,34 @@ def get_lane_id(vehicle_info, roadgraph):
                 lane_id, vehicle_info["availableLanes"]).id
 
     return lane_id
+
+# 8.12：判断车辆前车状态
+def get_pre_vehicle_status(vehicle: control_Vehicle, vehicles: Dict[int,control_Vehicle]) -> Behaviour:
+
+
+    """
+    Get the status of the pre vehicle.
+    中文翻译：
+    获取前车的状态。
+    """
+    # 检测前方车辆状态
+    front_vehicle_status : Behaviour = Behaviour.KL
+    # step 1. 找到前车
+    # 遍历所有其他车辆，检查同车道前方的车辆
+    for other_id, other_vehicle in vehicles.items():
+        if other_id == vehicle.id:
+            continue
+        # 检查是否在同一条车道
+        if other_vehicle.lane_id == vehicle.lane_id:
+            # 计算前方距离
+            distance = other_vehicle.current_state.s - vehicle.current_state.s
+            if distance > 0 and distance < 50:  # 前方50米内
+                # 检查前方车辆是否为停止状态（速度接近0）
+                if abs(other_vehicle.current_state.s_d) <= 0.1:  # 速度小于0.001m/s
+                    front_vehicle_status = Behaviour.STOP
+                    logging.info(
+                        f"Vehicle {vehicle.id} detected stopped vehicle {other_id} "
+                        f"ahead at distance {distance:.2f}m, speed: {other_vehicle.current_state.s_d:.2f}m/s"
+                    )
+                    # 待补充：检测其他状态
+    return front_vehicle_status

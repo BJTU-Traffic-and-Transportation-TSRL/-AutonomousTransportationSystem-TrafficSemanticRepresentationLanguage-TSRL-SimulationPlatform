@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2025-08-31 19:57:30 by Eclipse SUMO netedit Version 1.15.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <input>
+        <sumo-net-file value="D:\Analysis and Inference-1\Analysis and Inference\LimSim-2025.8\LimSim\networkFiles\Ramp_Merging_and_Exiting\Ramp_Merging_and_Exiting.net.xml"/>
+    </input>
+
+    <output>
+        <output-file value="D:\Analysis and Inference-1\Analysis and Inference\LimSim-2025.8\LimSim\networkFiles\Ramp_Merging_and_Exiting\Ramp_Merging_and_Exiting.net.xml"/>
+    </output>
+
+    <processing>
+        <geometry.min-radius.fix.railways value="false"/>
+        <geometry.max-grade.fix value="false"/>
+        <offset.disable-normalization value="true"/>
+        <lefthand value="0"/>
+    </processing>
+
+    <junctions>
+        <no-turnarounds value="true"/>
+        <junctions.corner-detail value="5"/>
+        <junctions.limit-turn-speed value="5.50"/>
+        <rectangular-lane-cut value="0"/>
+    </junctions>
+
+    <pedestrian>
+        <walkingareas value="0"/>
+    </pedestrian>
+
+</configuration>
+-->
+
+<net version="1.9" junctionCornerDetail="5" limitTurnSpeed="5.50" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
+
+    <location netOffset="0.00,0.00" convBoundary="0.00,60.00,200.00,100.00" origBoundary="0.00,0.00,200.00,200.00" projParameter="!"/>
+
+    <edge id=":Exit_0" function="internal">
+        <lane id=":Exit_0_0" index="0" speed="7.08" length="7.90" shape="151.21,95.20 153.02,94.90 154.57,94.01 155.85,92.52 156.88,90.44"/>
+    </edge>
+    <edge id=":Exit_1" function="internal">
+        <lane id=":Exit_1_0" index="0" speed="13.89" length="9.33" shape="151.21,95.20 160.17,95.20"/>
+        <lane id=":Exit_1_1" index="1" speed="13.89" length="9.33" shape="151.21,95.20 153.95,95.70 155.69,96.80 157.43,97.90 160.17,98.40"/>
+        <lane id=":Exit_1_2" index="2" speed="13.89" length="9.33" shape="151.21,98.40 153.95,97.90 155.69,96.80 157.43,95.70 160.17,95.20"/>
+        <lane id=":Exit_1_3" index="3" speed="13.89" length="9.33" shape="151.21,98.40 160.17,98.40"/>
+    </edge>
+    <edge id=":Merg_0" function="internal">
+        <lane id=":Merg_0_0" index="0" speed="7.08" length="7.90" shape="43.12,90.44 44.15,92.52 45.43,94.01 46.98,94.90 48.79,95.20"/>
+    </edge>
+    <edge id=":Merg_1" function="internal">
+        <lane id=":Merg_1_0" index="0" speed="13.89" length="9.33" shape="39.83,95.20 48.79,95.20"/>
+        <lane id=":Merg_1_1" index="1" speed="13.89" length="9.33" shape="39.83,95.20 42.57,95.70 44.31,96.80 46.05,97.90 48.79,98.40"/>
+        <lane id=":Merg_1_2" index="2" speed="13.89" length="9.33" shape="39.83,98.40 42.57,97.90 44.31,96.80 46.05,95.70 48.79,95.20"/>
+        <lane id=":Merg_1_3" index="3" speed="13.89" length="9.33" shape="39.83,98.40 48.79,98.40"/>
+    </edge>
+
+    <edge id="Exit" from="Exit" to="Exit_end" priority="-1">
+        <lane id="Exit_0" index="0" speed="13.89" length="33.11" shape="156.88,90.44 168.50,59.44"/>
+    </edge>
+    <edge id="Main_end" from="Exit" to="End" priority="-1">
+        <lane id="Main_end_0" index="0" speed="13.89" length="39.83" shape="160.17,95.20 200.00,95.20"/>
+        <lane id="Main_end_1" index="1" speed="13.89" length="39.83" shape="160.17,98.40 200.00,98.40"/>
+    </edge>
+    <edge id="Main_mid" from="Merg" to="Exit" priority="-1">
+        <lane id="Main_mid_0" index="0" speed="13.89" length="102.42" shape="48.79,95.20 151.21,95.20"/>
+        <lane id="Main_mid_1" index="1" speed="13.89" length="102.42" shape="48.79,98.40 151.21,98.40"/>
+    </edge>
+    <edge id="Main_start" from="Start" to="Merg" priority="-1">
+        <lane id="Main_start_0" index="0" speed="13.89" length="39.83" shape="0.00,95.20 39.83,95.20"/>
+        <lane id="Main_start_1" index="1" speed="13.89" length="39.83" shape="0.00,98.40 39.83,98.40"/>
+    </edge>
+    <edge id="Merg" from="Merg_start" to="Merg" priority="-1">
+        <lane id="Merg_0" index="0" speed="13.89" length="33.11" shape="31.50,59.44 43.12,90.44"/>
+    </edge>
+
+    <junction id="End" type="dead_end" x="200.00" y="100.00" incLanes="Main_end_0 Main_end_1" intLanes="" shape="200.00,93.60 200.00,100.00"/>
+    <junction id="Exit" type="priority" x="155.00" y="100.00" incLanes="Main_mid_0 Main_mid_1" intLanes=":Exit_0_0 :Exit_1_0 :Exit_1_1 :Exit_1_2 :Exit_1_3" shape="160.17,100.00 160.17,93.60 158.74,93.31 158.34,92.95 158.14,92.45 158.15,91.80 158.37,91.00 155.38,89.88 154.29,91.95 153.64,92.67 152.91,93.19 152.10,93.50 151.21,93.60 151.21,100.00">
+        <request index="0" response="00000" foes="00000" cont="0"/>
+        <request index="1" response="00000" foes="01000" cont="0"/>
+        <request index="2" response="00000" foes="10000" cont="0"/>
+        <request index="3" response="00010" foes="00010" cont="0"/>
+        <request index="4" response="00100" foes="00100" cont="0"/>
+    </junction>
+    <junction id="Exit_end" type="dead_end" x="170.00" y="60.00" incLanes="Exit_0" intLanes="" shape="167.00,58.88 170.00,60.00"/>
+    <junction id="Merg" type="priority" x="45.00" y="100.00" incLanes="Merg_0 Main_start_0 Main_start_1" intLanes=":Merg_0_0 :Merg_1_0 :Merg_1_1 :Merg_1_2 :Merg_1_3" shape="48.79,100.00 48.79,93.60 47.09,93.19 46.36,92.67 45.71,91.95 45.13,91.02 44.62,89.88 41.63,91.00 41.86,92.45 41.66,92.95 41.26,93.31 40.65,93.53 39.83,93.60 39.83,100.00">
+        <request index="0" response="11110" foes="11110" cont="0"/>
+        <request index="1" response="01000" foes="01001" cont="0"/>
+        <request index="2" response="10000" foes="10001" cont="0"/>
+        <request index="3" response="00000" foes="00011" cont="0"/>
+        <request index="4" response="00000" foes="00101" cont="0"/>
+    </junction>
+    <junction id="Merg_start" type="dead_end" x="30.00" y="60.00" incLanes="" intLanes="" shape="30.00,60.00 33.00,58.88"/>
+    <junction id="Start" type="dead_end" x="0.00" y="100.00" incLanes="" intLanes="" shape="0.00,100.00 0.00,93.60"/>
+
+    <connection from="Main_mid" to="Exit" fromLane="0" toLane="0" via=":Exit_0_0" dir="r" state="M"/>
+    <connection from="Main_mid" to="Main_end" fromLane="0" toLane="0" via=":Exit_1_0" dir="s" state="M"/>
+    <connection from="Main_mid" to="Main_end" fromLane="0" toLane="1" via=":Exit_1_1" dir="s" state="M"/>
+    <connection from="Main_mid" to="Main_end" fromLane="1" toLane="0" via=":Exit_1_2" dir="s" state="m"/>
+    <connection from="Main_mid" to="Main_end" fromLane="1" toLane="1" via=":Exit_1_3" dir="s" state="m"/>
+    <connection from="Main_start" to="Main_mid" fromLane="0" toLane="0" via=":Merg_1_0" dir="s" state="m"/>
+    <connection from="Main_start" to="Main_mid" fromLane="0" toLane="1" via=":Merg_1_1" dir="s" state="m"/>
+    <connection from="Main_start" to="Main_mid" fromLane="1" toLane="0" via=":Merg_1_2" dir="s" state="M"/>
+    <connection from="Main_start" to="Main_mid" fromLane="1" toLane="1" via=":Merg_1_3" dir="s" state="M"/>
+    <connection from="Merg" to="Main_mid" fromLane="0" toLane="0" via=":Merg_0_0" dir="r" state="m"/>
+
+    <connection from=":Exit_0" to="Exit" fromLane="0" toLane="0" dir="r" state="M"/>
+    <connection from=":Exit_1" to="Main_end" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":Exit_1" to="Main_end" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":Exit_1" to="Main_end" fromLane="2" toLane="0" dir="s" state="M"/>
+    <connection from=":Exit_1" to="Main_end" fromLane="3" toLane="1" dir="s" state="M"/>
+    <connection from=":Merg_0" to="Main_mid" fromLane="0" toLane="0" dir="r" state="M"/>
+    <connection from=":Merg_1" to="Main_mid" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":Merg_1" to="Main_mid" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":Merg_1" to="Main_mid" fromLane="2" toLane="0" dir="s" state="M"/>
+    <connection from=":Merg_1" to="Main_mid" fromLane="3" toLane="1" dir="s" state="M"/>
+
+</net>
