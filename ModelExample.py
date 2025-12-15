@@ -1,6 +1,5 @@
 from simModel.egoTracking.model import Model
 from trafficManager.traffic_manager import TrafficManager
-
 import logger
 import os
 # config a logger, set use_stdout=True to output log to terminal
@@ -12,8 +11,6 @@ log_file_path = os.path.join(log_dir, "app_debug_example.log")
 log = logger.setup_app_level_logger(file_name=log_file_path,
                                     level="DEBUG",
                                     use_stdout=False)
-
-
 file_paths = {
     "corridor": (
         "networkFiles/corridor/corridor.net.xml",
@@ -65,6 +62,10 @@ def run_model(
     communication = True,# 新增参数，全局通信管理器
     if_clear_message_file=False # 8.27 新增参数，是否清理消息文件
 ):
+    # 加载配置文件
+    from utils.load_config import load_config
+    config = load_config("trafficManager/config.yaml")
+    
     model = Model(
         ego_veh_id,
         net_file,
@@ -75,6 +76,7 @@ def run_model(
         carla_cosim=carla_cosim,
         max_steps=int(max_sim_time * 10), # 将max_sim_time转换为步长
         communication=communication, # 25.8.16 新增参数，全局通信管理器
+        config=config  # 传递配置信息
     )
     model.start()
     planner = TrafficManager(model)

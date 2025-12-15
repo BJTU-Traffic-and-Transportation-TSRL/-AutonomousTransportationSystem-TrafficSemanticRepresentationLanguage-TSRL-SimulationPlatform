@@ -1,0 +1,6 @@
+Send by ship3:Ship3Position(X1,Y1), Ship3Speed(8kn), Ship3Heading(30°), Ship3Status(Approaching)
+Received by ship2:Ship3Position(X1,Y1), Ship3Speed(8kn), Ship3Heading(30°), Ship3Status(Approaching)
+Send by ship2:Ship2Position(X2,Y2), Ship2Speed(10kn), Ship2Heading(95°), Ship2Status(Approaching)
+Received by ship3:Ship2Position(X2,Y2), Ship2Speed(10kn), Ship2Heading(95°), Ship2Status(Approaching)
+Send by Ship3:Priority(Ship3), GiveWay(Ship2)
+Received by ship2:Priority(Ship3), GiveWay(Ship2)

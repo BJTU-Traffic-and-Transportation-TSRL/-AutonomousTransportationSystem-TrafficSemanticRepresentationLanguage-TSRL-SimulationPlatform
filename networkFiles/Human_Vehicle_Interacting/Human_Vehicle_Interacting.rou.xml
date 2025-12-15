@@ -6,7 +6,7 @@
   </flow>
 
     <!-- 自动驾驶测试车 -->
-  <vehicle id="AV_0" depart="20" color="1,0,0">
+  <vehicle id="0" depart="20" color="1,0,0">
     <route edges="main"/>
   </vehicle>
 </routes>

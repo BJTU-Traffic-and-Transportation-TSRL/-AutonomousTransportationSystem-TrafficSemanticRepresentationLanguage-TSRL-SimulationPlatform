@@ -1,0 +1,107 @@
+% 道路交通规则形式化表示（TSRL兼容版）
+
+% 依据文件：
+
+%《中华人民共和国道路交通安全法》（2021年第三次修正）
+%《中华人民共和国道路交通安全法实施条例》（国务院令第405号，2017年修订）
+% T/ITS 0293.1-2025《自主式交通系统 交通语义表示语言 第1部分：通用定义》
+%《自主式交通系统 互操作语法规范》
+% 整理日期：2025年12月1日
+
+% 一、机动车通行规则
+
+% 基本通行原则
+ObeyRightSideRule(x):-IsMotorVehicle(x). % ← 道交法第35条：机动车、非机动车实行右侧通行
+StayInDesignatedLane(x) :- IsMotorVehicle(x), HasAssignedLane(x, lane), LaneIsAvailable(lane). % ← 道交法第36条
+ObeyTrafficPoliceCommand(x) :- IsMotorVehicle(x), TrafficPolicePresent(y), IsGivingSignal(y, x). % ← 道交法第38条
+
+% 速度控制
+MaintainSafeSpeed(x) :- IsMotorVehicle(x), HasSpeed(x, v), OnRoad(x, r), RoadHasSpeedLimit(r, limit), v =< limit. % ← 道交法第42条第1款
+ReduceSpeedInHazard(x) :- IsMotorVehicle(x), (AtHazardousSection(x, s); InLowVisibilityWeather(x, w)). % ← 道交法第42条第2款
+
+% 超车限制
+ProhibitOvertake(x) :- IsMotorVehicle(x), HasFrontVehicle(x, y), (TurningLeft(y); MakingUTurn(y); Overtaking(y)). % ← 道交法第43条(一)
+ProhibitOvertake(x) :- IsMotorVehicle(x), OppositeLaneHasOncomingTraffic(x). % ← 道交法第43条(二)
+ProhibitOvertake(x) :- IsMotorVehicle(x), AtLocation(x, loc), IsRailwayCrossing(loc); IsIntersection(loc); IsNarrowBridge(loc); IsSharpCurve(loc); IsSteepSlope(loc); IsTunnel(loc); IsCrosswalk(loc). % ← 道交法第43条(四)
+
+% 交叉路口通行
+YieldToThroughTraffic(x) :- IsMotorVehicle(x), Turning(x), AtIntersection(x, i), ExistsVehicle(y), IsVehicle(y), ThroughMovement(y, i). % ← 实施条例第51条(七)
+YieldToRightApproach(x) :- IsMotorVehicle(x), AtUncontrolledIntersection(x, i), ExistsVehicle(y), ApproachingFromRight(y, i). % ← 实施条例第52条(二)
+StopBehindStopLine(x) :- IsMotorVehicle(x), AtSignalizedIntersection(x, i), SignalLight(i, red). % ← 实施条例第51条(五)
+
+% 特殊车辆让行
+YieldToEmergencyVehicle(x) :- IsMotorVehicle(x), ExistsVehicle(y), IsEmergencyVehicle(y), OnSameRoad(x, y), EmergencyModeActive(y). % ← 道交法第53条第1款
+
+% 高速公路特别规则
+ProhibitReverseOnHighway(x) :- IsMotorVehicle(x), OnHighway(x). % ← 实施条例第82条(一)
+ProhibitLaneStopOnHighway(x) :- IsMotorVehicle(x), OnHighway(x), NotEmergency(x). % ← 实施条例第82条(一)
+SetWarningSignAtDistance(x, 150) :- IsMotorVehicle(x), BreakdownOnHighway(x). % ← 道交法第68条第1款
+EnforceMinSpeedOnHighway(x) :- IsMotorVehicle(x), OnHighway(x), HasSpeed(x, v), v >= 60. % ← 实施条例第78条
+EnforceMaxSpeedSmallCar(x) :- IsMotorVehicle(x), OnHighway(x), IsSmallPassengerCar(x), HasSpeed(x, v), v =< 120. % ← 实施条例第78条
+
+% 安全与禁止行为
+UseLowBeamAtNight(x) :- IsMotorVehicle(x), DrivingAtNight(x), RoadHasStreetLighting(x). % ← 实施条例第58条
+ProhibitHandheldPhoneUse(x) :- IsDriver(x), OperatingVehicle(x, v), UsingHandheldDevice(x). % ← 实施条例第62条(三)
+ProhibitCoastingDownhill(x) :- IsMotorVehicle(x), OnDownhillSlope(x), (EngineStatus(x, off); GearPosition(x, neutral)). % ← 实施条例第62条(四)
+
+二、非机动车通行规则
+
+% 通行位置
+RideOnRightSide(x) :- IsNonMotorVehicle(x), NotExists(BikeLane). % ← 道交法第57条
+UseBikeLane(x) :- IsNonMotorVehicle(x), BikeLaneAvailable(x). % ← 道交法第57条
+EnforceSpeedLimit15(x) :- IsNonMotorVehicle(x), (IsElectricBicycle(x); IsDisabledMobilityVehicle(x)), OnBikeLane(x), HasSpeed(x, v), v =< 15. % ← 道交法第58条
+
+% 横过道路
+DismountAndWalk(x) :- IsNonMotorVehicle(x), CrossingMotorLane(x), NotAtPedestrianCrossing(x). % ← 道交法第57条
+UsePedestrianCrossing(x) :- IsNonMotorVehicle(x), CrossingRoad(x), PedestrianCrossingAvailable(x). % ← 道交法第57条
+
+% 路口行为
+YieldWhenTurning(x) :- IsNonMotorVehicle(x), Turning(x), AtIntersection(x, i), ExistsVehicle(y), ThroughMovement(y, i). % ← 实施条例第68条(一)
+TurnLeftAtCenterRight(x) :- IsNonMotorVehicle(x), TurningLeft(x), AtIntersection(x, i). % ← 实施条例第68条(三)
+StopAtRedLight(x) :- IsNonMotorVehicle(x), AtSignalizedIntersection(x, i), SignalLight(i, red). % ← 实施条例第68条(四)
+
+% 禁止行为
+ProhibitDrunkRiding(x) :- IsNonMotorVehicleOperator(x), BloodAlcoholConcentration(x, bac), bac > 0. % ← 实施条例第72条(三)
+ProhibitHandsFreeRiding(x) :- IsNonMotorVehicleOperator(x), HandsNotOnHandlebars(x). % ← 实施条例第72条(五)
+ProhibitRacing(x, y) :- IsNonMotorVehicleOperator(x), IsNonMotorVehicleOperator(y), OnSameRoad(x, y), EngagedInRacing(x, y). % ← 实施条例第72条(六)
+
+% 年龄资格
+PermitOperation(x, bicycle) :- IsPerson(x), Age(x, a), a >= 12. % ← 实施条例第72条(一)
+PermitOperation(x, electric_bicycle) :- IsPerson(x), Age(x, a), a >= 16. % ← 实施条例第72条(二)
+
+三、行人与乘车人通行规则
+
+% 行人通行
+WalkOnSidewalk(x) :- IsPedestrian(x), SidewalkAvailable(x). % ← 道交法第61条
+WalkNearRoadEdge(x) :- IsPedestrian(x), NotExists(Sidewalk). % ← 道交法第61条
+UsePedestrianCrossing(x) :- IsPedestrian(x), CrossingRoad(x), PedestrianCrossingAvailable(x). % ← 道交法第62条
+CrossSafely(x) :- IsPedestrian(x), CrossingRoad(x), NotExists(PedestrianCrossing), LookBothDirections(x), SafeToCross(x). % ← 道交法第62条
+ProhibitJaywalking(x) :- IsPedestrian(x), AtSignalizedCrossing(x, c), PedestrianSignal(c, red), EnteringCrosswalk(x). % ← 道交法第62条
+ProhibitClimbingBarrier(x) :- IsPedestrian(x), RoadHasGuardrail(x). % ← 道交法第63条
+
+% 乘车人义务
+WearSeatBelt(x) :- IsPassenger(x), InMovingVehicle(x, v), SeatEquippedWithBelt(x). % ← 道交法第51条
+ProhibitDisturbingDriver(x) :- IsPassenger(x), InMovingVehicle(x, v), DistractingDriver(x). % ← 实施条例第77条(四)
+ProhibitBodyProtrusion(x) :- IsPassenger(x), InMovingVehicle(x, v), BodyPartOutsideVehicle(x). % ← 实施条例第77条(四)
+OpenDoorSafely(x) :- IsPassenger(x), ExitingVehicle(x), CheckRearTraffic(x), SafeToOpenDoor(x). % ← 实施条例第77条(三)
+RideFacingForward(x) :- IsPassenger(x), OnMotorcycle(x), FacingDirection(x, forward). % ← 实施条例第77条(五)
+
+【术语与格式说明】
+
+谓词命名规范（依据 T/ITS 0293.1-2025 §4.1）：
+类别谓词：IsXXX(entity)，如 IsMotorVehicle(x)
+属性谓词：HasXXX(subject, value)，如 HasSpeed(x, v)
+关系/行为谓词：大驼峰命名，如 YieldTo, StopAt
+所有变量使用小写字母（x, y, v, i 等）
+实体类型定义：
+IsVehicle(x)：泛指所有车辆
+IsMotorVehicle(x)：机动车
+IsNonMotorVehicle(x)：非机动车
+IsPedestrian(x)：行人
+IsPassenger(x)：乘车人
+IsDriver(x)：驾驶人
+法律依据标注：
+% ← 道交法第XX条：指《中华人民共和国道路交通安全法》
+% ← 实施条例第XX条：指《中华人民共和国道路交通安全法实施条例》
+适用性声明：
+本形式化规则集旨在支持自主式交通系统的语义推理与行为决策，其法律解释以官方发布文本为准。实际部署时需结合场景上下文进行谓词实例化与冲突消解。

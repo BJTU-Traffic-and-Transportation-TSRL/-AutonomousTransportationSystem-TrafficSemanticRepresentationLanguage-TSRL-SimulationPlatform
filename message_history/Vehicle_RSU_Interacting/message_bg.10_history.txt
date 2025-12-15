@@ -1,1 +1,0 @@
-InformationRequest2RSU(RSU_1)

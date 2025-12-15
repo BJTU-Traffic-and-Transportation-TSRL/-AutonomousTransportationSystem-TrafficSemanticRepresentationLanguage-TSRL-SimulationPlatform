@@ -1,0 +1,6 @@
+IsJunction(2);
+StopAt(0,02);
+
+Congestion(y):-StopAt(x,y),IsJunction(y);//x停车在y，y是交叉口
+
+ASK Congestion(y);

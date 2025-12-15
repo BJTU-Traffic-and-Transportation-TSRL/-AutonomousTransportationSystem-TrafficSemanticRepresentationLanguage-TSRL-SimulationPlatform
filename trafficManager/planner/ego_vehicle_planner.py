@@ -1,4 +1,3 @@
-import time
 import traci
 
 from common.observation import Observation
@@ -17,7 +16,7 @@ from utils.trajectory import State, Trajectory
 logging = logger.get_logger(__name__)
 
 """
-Ego自车轨迹规划
+Ego自车轨迹规划(MCTS)
 """
 
 
@@ -103,7 +102,6 @@ class EgoPlanner(AbstractEgoPlanner):
                     path = traj_generator.stop_trajectory_generator(
                         ego_veh, lanes, obs_list, roadgraph, config, T,
                     )
-
         # 如果当前车辆行为是停止
         elif vehicle_behaviour == Behaviour.STOP:
             # Stopping
@@ -115,34 +113,48 @@ class EgoPlanner(AbstractEgoPlanner):
             ego_veh.communicator.send(f"LeftChangeLane({ego_veh.id});",performative=Performative.Inform) 
             # Turn Left
             left_lane = roadgraph.get_lane_by_id(current_lane.left_lane())
-            path = traj_generator.lanechange_trajectory_generator(
-                ego_veh,
-                left_lane,
-                obs_list,
-                config,
-                T,
-            )
-            # 10.20 确认车辆是否已经在目标车道上
-            if traci.vehicle.getLaneID(ego_veh.id) == left_lane.id:
-                # 车辆已在目标车道，发送完成变道消息并保持车道
-                ego_veh.communicator.send(f"LeftChangeLaneComplete({ego_veh.id});", performative=Performative.Inform)
-                ego_veh.behaviour = Behaviour.KL
-                # path = traj_generator.lanekeeping_trajectory_generator(
-                #     ego_veh, lanes, obs_list, config, T,
-                # )
+            # 检查left_lane是否为None，防止后续访问course_spline时出错
+            if left_lane is None:
+                logging.warning(f"Cannot find left lane for vehicle {ego_veh.id}, keeping current lane instead")
+                path = traj_generator.lanekeeping_trajectory_generator(
+                    ego_veh, lanes, obs_list, config, T,
+                )
+            else:
+                path = traj_generator.lanechange_trajectory_generator(
+                    ego_veh,
+                    left_lane,
+                    obs_list,
+                    config,
+                    T,
+                )
+                # 10.20 确认车辆是否已经在目标车道上
+                if traci.vehicle.getLaneID(ego_veh.id) == left_lane.id:
+                    # 车辆已在目标车道，发送完成变道消息并保持车道
+                    ego_veh.communicator.send(f"LeftChangeLaneComplete({ego_veh.id});", performative=Performative.Inform)
+                    ego_veh.behaviour = Behaviour.KL
+                    # path = traj_generator.lanekeeping_trajectory_generator(
+                    #     ego_veh, lanes, obs_list, config, T,
+                    # )
         elif vehicle_behaviour == Behaviour.LCR:
             # 8.27 新增：发送变道互操作语言
             ego_veh.communicator.send(f"RightChangeLane({ego_veh.id});",performative=Performative.Inform) 
             # Turn Right
             right_lane = roadgraph.get_lane_by_id(
                 current_lane.right_lane())
-            path = traj_generator.lanechange_trajectory_generator(
-                ego_veh,
-                right_lane,
-                obs_list,
-                config,
-                T,
-            )
+            # 检查right_lane是否为None，防止后续访问course_spline时出错
+            if right_lane is None:
+                logging.warning(f"Cannot find right lane for vehicle {ego_veh.id}, keeping current lane instead")
+                path = traj_generator.lanekeeping_trajectory_generator(
+                    ego_veh, lanes, obs_list, config, T,
+                )
+            else:
+                path = traj_generator.lanechange_trajectory_generator(
+                    ego_veh,
+                    right_lane,
+                    obs_list,
+                    config,
+                    T,
+                )
         elif vehicle_behaviour == Behaviour.IN_JUNCTION:
             # in Junction. for now just stop trajectory
             path = traj_generator.stop_trajectory_generator(

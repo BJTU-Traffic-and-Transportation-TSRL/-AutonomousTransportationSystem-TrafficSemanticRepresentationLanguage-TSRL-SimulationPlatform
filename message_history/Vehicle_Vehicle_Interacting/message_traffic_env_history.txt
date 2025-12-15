@@ -1,0 +1,15 @@
+SelfVehicle(0);
+IsJunction(7);
+StopAt(2,8);
+StopAt(3,8);
+HasNextJunction(0,7);
+EmergencyStation(6);
+StopAt(4,8);
+EmergencyStation(12);
+EmergencyStation(1);
+StopAt(12,8);
+EmergencyStation(2);
+EmergencyStation(1);
+EmergencyStation(2);
+StopAt(2,9);
+StopAt(14,8);

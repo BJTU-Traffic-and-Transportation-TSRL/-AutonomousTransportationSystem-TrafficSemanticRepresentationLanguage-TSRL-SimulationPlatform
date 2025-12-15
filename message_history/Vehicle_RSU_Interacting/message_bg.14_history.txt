@@ -1,1 +1,0 @@
-InformationRequest2RSU(AV_0,RSU_1);

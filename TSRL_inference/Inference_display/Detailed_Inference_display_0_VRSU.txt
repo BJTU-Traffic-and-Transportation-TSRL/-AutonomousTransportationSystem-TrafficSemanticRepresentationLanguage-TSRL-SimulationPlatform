@@ -1,0 +1,100 @@
+=== TSRL详细推理展示 ===
+
+车辆ID: 0
+时间: 2025-12-03 18:03:37
+
+=== 匹配的规则 ===
+LeftChangeLane(x):-CheckChangeLane(x),LeftChangeLaneSafe(x);//x的左车道可以变道
+
+=== 消息历史 ===
+1. CheckChangeLane(0);
+2. LeftChangeLaneSafe(0);
+3. RightChangeLaneSafe(0);
+4. RightChangeLane(0);
+5. RightChangeLane(0);
+6. RightChangeLane(0);
+7. RightChangeLane(0);
+8. RightChangeLane(0);
+9. CheckChangeLane(0);
+10. LeftChangeLaneSafe(0);
+11. RightChangeLaneSafe(0);
+12. CheckChangeLane(0);
+13. LeftChangeLaneSafe(0);
+14. LeftChangeLane(0);
+15. LeftChangeLane(0);
+16. LeftChangeLane(0);
+17. LeftChangeLane(0);
+18. LeftChangeLane(0);
+19. CheckChangeLane(0);
+20. LeftChangeLaneSafe(0);
+21. RightChangeLaneSafe(0);
+22. RightChangeLane(0);
+23. RightChangeLane(0);
+24. RightChangeLane(0);
+25. RightChangeLane(0);
+26. RightChangeLane(0);
+27. CheckChangeLane(0);
+28. LeftChangeLaneSafe(0);
+29. LeftChangeLane(0);
+30. LeftChangeLane(0);
+31. LeftChangeLane(0);
+32. LeftChangeLane(0);
+33. LeftChangeLane(0);
+34. LeftChangeLane(0);
+35. LeftChangeLane(0);
+36. LeftChangeLane(0);
+37. LeftChangeLane(0);
+38. LeftChangeLane(0);
+39. LeftChangeLane(0);
+40. LeftChangeLane(0);
+
+=== 推理输入文件内容 (Inference_0_input.txt) ===
+CheckChangeLane(0);
+LeftChangeLaneSafe(0);
+RightChangeLaneSafe(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+CheckChangeLane(0);
+LeftChangeLaneSafe(0);
+RightChangeLaneSafe(0);
+CheckChangeLane(0);
+LeftChangeLaneSafe(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+CheckChangeLane(0);
+LeftChangeLaneSafe(0);
+RightChangeLaneSafe(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+CheckChangeLane(0);
+LeftChangeLaneSafe(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+
+LeftChangeLane(x):-CheckChangeLane(x),LeftChangeLaneSafe(x);//x的左车道可以变道
+
+ASK LeftChangeLane(x);
+
+=== TSRL推理输出内容 (Inference_0_output.txt) ===
+{"x": "0"}
+=== 解析后的决策结果 ===
+LeftChangeLane(0)

@@ -215,7 +215,9 @@ class ReplayModel:
     def initVeh(self, vid: str, currFrame: int) -> Vehicle | egoCar:
         dbTrajectory = self.dbTrajectory(vid, currFrame)
         if vid == self.egoID:
-            veh = egoCar(vid)
+            # 从配置中获取DEAREA值，如果不存在则使用默认值50.0
+            dearea = self.config.get("DEAREA", 50.0) if hasattr(self, 'config') and self.config else 50.0
+            veh = egoCar(vid, deArea=dearea)
         else:
             veh = Vehicle(vid)
         veh.dbTrajectory = dbTrajectory

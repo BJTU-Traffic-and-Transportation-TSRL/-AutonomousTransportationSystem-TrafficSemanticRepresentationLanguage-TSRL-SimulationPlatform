@@ -64,14 +64,10 @@ class TSRL:
             output_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Infer_output", "output.txt")
             TSRL.TSRL_interpreter.set_output_file(output_file_path)
         TSRL.TSRL_interpreter.interpret(statements)
-        
-        
 
 """
 修改TSRL.main()，使其接收输入和输出文件路径作为参数
 """
-# input_file = "TSRL_representation\input_VRSU.txt"
-# output_file = "TSRL_representation\output_VRSU.txt"
+# input_file = "TSRL_representation\Infer_input\input_1.txt"
+# output_file = "TSRL_representation\Infer_output\output.txt"
 # TSRL.main(input_file, output_file)
-    
-

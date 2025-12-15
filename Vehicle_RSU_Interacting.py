@@ -28,9 +28,11 @@ if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 log_file_path = os.path.join(log_dir, "app_debug_VRSU.log")
 log = logger.setup_app_level_logger(file_name=log_file_path)
+# 设置场景名称
 Scenario_Name = "Vehicle_RSU_Interacting"
+# 设置路网文件路径
 file_paths = {
-    "Vehicle_RSU_Interacting": (
+    "{}".format(Scenario_Name): (
         "networkFiles/Vehicle_RSU_Interacting/Vehicle_RSU_Interacting.net.xml",
         "networkFiles/Vehicle_RSU_Interacting/Vehicle_RSU_Interacting.rou.xml",
         "networkFiles/Vehicle_RSU_Interacting/Vehicle_RSU_Interacting.add.xml"
@@ -52,6 +54,10 @@ def run_model(
 ):
     """运行车辆与RSU交互模拟"""
     try:
+        # 加载配置文件
+        from utils.load_config import load_config
+        config = load_config("trafficManager/config.yaml")
+        
         model = Model(
             ego_veh_id,
             net_file,
@@ -64,6 +70,7 @@ def run_model(
             max_steps=int(max_sim_time * 10), # 将max_sim_time转换为步长
             communication=communication, # 全局通信管理器
             Scenario_Name=Scenario_Name, # 场景名称
+            config=config  # 传递配置信息
         )
         model.start() # 初始化
         planner = TrafficManager(model) # 初始化车辆规划模块
@@ -122,18 +129,13 @@ def run_model(
 
 if __name__ == "__main__":
     try:
-        net_file, rou_file,add_file = file_paths['Vehicle_RSU_Interacting']
+        if len(file_paths['{}'.format(Scenario_Name)]) == 3:
+            # add.xml exists
+            net_file, rou_file,add_file = file_paths['{}'.format(Scenario_Name)]
+        else:
+            net_file, rou_file = file_paths['{}'.format(Scenario_Name)]
+            add_file = None
         print("net_file:\n", net_file, "\nrou_file:\n", rou_file,"\nadd_file:\n", add_file)
-        
-        # 使用相对于当前文件的路径创建日志和相关文件
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        log_dir = os.path.join(current_dir, "logs")
-        vrsu_dir = os.path.join(current_dir, "Vehicle_RSU_Interacting_output")
-        
-        # 确保必要的目录存在
-        os.makedirs(log_dir, exist_ok=True)
-        os.makedirs(vrsu_dir, exist_ok=True)
-        
         # 运行模型
         run_model(
             net_file, 

@@ -1,40 +1,36 @@
 === TSRL详细推理展示 ===
 
 车辆ID: 1
-时间: 2025-11-03 12:15:55
+时间: 2025-12-12 23:08:33
 
 === 匹配的规则 ===
-LeftChangeLane(x):-CheckChangeLane(x),LeftChangeLaneSafe(x);
+CheckChangeLane(y):-VehicleInLane(y,x,Rear),EmergencyStation(x);//y在x的后面，x紧急停止
 
 === 消息历史 ===
 1. SelfVehicle(1);
-2. Redlight(0);
-3. Redlight(1);
-4. EmergencyStation(0);
-5. CheckChangeLane(1);
-6. LeftChangeLaneSafe(1);
-7. LeftChangeLane(1);
-8. LeftChangeLane(1);
-9. LeftChangeLane(1);
-10. LeftChangeLane(1);
+2. IsJunction(2);
+3. HasNextJunction(1,2);
+4. HasNextJunction(1,2);
+5. EmergencyStation(0);
+6. VehicleInLane(1,0,Rear);
+7. EmergencyStation(0);
+8. VehicleInLane(1,0,Rear);
 
 === 推理输入文件内容 (Inference_1_input.txt) ===
 SelfVehicle(1);
-Redlight(0);
-Redlight(1);
+IsJunction(2);
+HasNextJunction(1,2);
+HasNextJunction(1,2);
 EmergencyStation(0);
-CheckChangeLane(1);
-LeftChangeLaneSafe(1);
-LeftChangeLane(1);
-LeftChangeLane(1);
-LeftChangeLane(1);
-LeftChangeLane(1);
+VehicleInLane(1,0,Rear);
+EmergencyStation(0);
+VehicleInLane(1,0,Rear);
 
-LeftChangeLane(x):-CheckChangeLane(x),LeftChangeLaneSafe(x);
+CheckChangeLane(y):-VehicleInLane(y,x,Rear),EmergencyStation(x);//y在x的后面，x紧急停止
 
-ASK LeftChangeLane(x);
+ASK CheckChangeLane(y);
 
 === TSRL推理输出内容 (Inference_1_output.txt) ===
-{"x": "1"}
+{"y": "1"}
 === 解析后的决策结果 ===
-LeftChangeLane(1)
+CheckChangeLane(1)

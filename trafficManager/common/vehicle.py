@@ -30,8 +30,8 @@ from collections import deque
 from trafficManager.common.coord_conversion import cartesian_to_frenet2D
 from utils.roadgraph import AbstractLane, JunctionLane, NormalLane, RoadGraph
 from utils.trajectory import State
-
-from TSRL_interaction.vehicle_communication import CommunicationManager, Performative, VehicleCommunicator
+from TSRL_interaction.vehicle_communication import CommunicationManager, Performative
+from TSRL_interaction.communicator_category import VehicleCommunicator
 
 import logger
 
@@ -48,6 +48,8 @@ class Behaviour(IntEnum):
     IN_JUNCTION = 6 # 进入 junction
     OVERTAKE = 7 # 超车
     OTHER = 100
+    SEND = 101 # 发送消息
+    SPECIAL_HANDLING = 102 # 特殊处理
 
 
 class VehicleType(str, Enum):
@@ -75,7 +77,8 @@ class control_Vehicle():
                  stop_until: deque = deque(maxlen=100),
                  if_traffic_communication: bool = False,
                  if_ego: bool = False,
-                 communication_manager: CommunicationManager = None) -> None:
+                 communication_manager: CommunicationManager = None,
+                 ego_id: str = None) -> None:
 
 
 
@@ -119,6 +122,12 @@ class control_Vehicle():
         if if_traffic_communication:
             self.communication_manager=communication_manager
             self.communicator = VehicleCommunicator(self.id, self, self.communication_manager, if_ego)
+        # 新增：记录是否已经发送过HasNextJunction消息
+        self.has_sent_next_junction_msg = False
+        # 新增：记录前一个行为状态，用于检测行为变化
+        self.previous_behaviour = None
+        # 新增：存储主车ID，用于判断是否为Ego车辆
+        self.ego_id = ego_id
     @property
     def current_state(self) -> State:
         """
@@ -212,32 +221,162 @@ class control_Vehicle():
         ) in self.available_lanes:
             self.behaviour = Behaviour.LCL
             logging.info(f"Key command Vehicle {self.id} to change Left lane")
-
         elif manual_input == 'Right' and current_lane.right_lane(
         ) in self.available_lanes:
             self.behaviour = Behaviour.LCR
             logging.warning(
                 f"Key command Vehicle {self.id} to change Right lane")
+        elif manual_input:
+            # 导入Scanner类和相关依赖
+            from TSRL_representation.Scanner import Scanner
+            from TSRL_representation.Tokentype import Token, TokenType
+            from decision_maker.TSRL_decision_maker import action_name_to_behaviour_mapper
+            # 创建Scanner实例
+            scanner = Scanner(manual_input)
+            # 进行词法分析
+            tokens = scanner.scan_tokens()
+            # 打印词法分析结果
+            for token in tokens:
+                if token.type == TokenType.IDENTIFIER:
+                    action = token.lexeme
+                elif token.type == TokenType.NUMBER:
+                    action_id=token.lexeme
+            if self.id != action_id:
+                return
+            self.behaviour = action_name_to_behaviour_mapper.get_behaviour(action)
+            
+    def handle_sender_location(self, sender_id: str, vehicles: Dict[str, 'control_Vehicle'], roadgraph) -> str:
+        """
+        处理发送主体与自主体位置消息，判断相对位置关系
+        
+        Args:
+            sender_id: 发送位置消息的车辆主体ID
+            vehicles: 所有车辆的字典
+            roadgraph: 道路图信息
+            
+        Returns:
+            str: 相对位置关系描述字符串，或None表示无法判断
+        """
+        # 获取当前车辆信息（自身）
+        current_vehicle = vehicles.get(self.id)
+        if not current_vehicle:
+            print(f"Warning: Current vehicle {self.id} not found in vehicles dict")
+            return None
+        # 检查发送者是否在车辆字典中
+        if sender_id not in vehicles:
+            print(f"Warning: Sender vehicle {sender_id} not found in vehicles dict")
+            return None
+        sender_vehicle = vehicles[sender_id]
+        # 获取车道和位置信息
+        sender_lane_id = sender_vehicle.lane_id
+        sender_pos = sender_vehicle.current_state.s
+        current_lane_id = current_vehicle.lane_id
+        current_pos = current_vehicle.current_state.s
+        # 判断相对位置关系
+        if current_lane_id == sender_lane_id:
+            if current_pos >= sender_pos:
+                return f"VehicleInLane({self.id},{sender_id},Front);" # 自车在sender同车道前方
+            else:
+                return f"VehicleInLane({self.id},{sender_id},Rear);" # 自车在sender同车道后方
+        else:
+            # 获取发送者车道对象
+            sender_lane = roadgraph.get_lane_by_id(sender_lane_id)
+            # 判断当前车辆是否在发送者的左车道
+            if (sender_lane and hasattr(sender_lane, 'left_lane') and 
+                sender_lane.left_lane() == current_lane_id):
+                if current_pos >= sender_pos:
+                    return f"VehicleLeftLane({self.id},{sender_id},Front)"
+                else:
+                    return f"VehicleLeftLane({self.id},{sender_id},Rear)"
+            # 判断当前车辆是否在发送者的右车道
+            elif (sender_lane and hasattr(sender_lane, 'right_lane') and 
+                sender_lane.right_lane() == current_lane_id):
+                if current_pos >= sender_pos:
+                    return f"VehicleRightLane({self.id},{sender_id},Front)"
+                else:
+                    return f"VehicleRightLane({self.id},{sender_id},Rear)"
+            # 如果无法判断相对位置关系，返回None
+            return None
 
-    def update_behaviour(self, roadgraph: RoadGraph, manual_input: str = None) -> None:
+    def update_behaviour(self, roadgraph: RoadGraph, manual_input: str = None, vehicles: dict = None) -> None:
         """Update the behaviour of a vehicle.
-
+        中文翻译：
+        更新车辆的行为（默认行为更新，非决策生成行为更新）
         Args:
             roadgraph (RoadGraph): The roadgraph containing the lanes the vehicle is traveling on.
+        【基本架构】：
+        一、 信息获取
+            1.1 保存self车辆上一个行为状态，用于检测行为变化
+            1.2 添加车辆位置信息日志
+            1.3 车辆前方交叉口信息
+            1.4 检测行为状态变化
+        二、 外部控制：使用键盘输入左右方向or ad键实现变道
+        三、 内部控制 
+            3.1 行为更新
+                3.1.1 主动停车
+                3.1.2 车辆变道行为
+                3.1.3 车辆进入 junction 行为更新
         """
+        # 一、信息获取
+        # 1.1 保存self车辆上一个行为状态，用于检测行为变化
+        self.previous_behaviour = self.behaviour
         current_lane = roadgraph.get_lane_by_id(self.lane_id)
         logging.debug(
             f"Vehicle {self.id} is in lane {self.lane_id}, "
             f"In available_lanes? {current_lane.id in self.available_lanes}")
-        # 7.19：添加车辆位置信息日志
+        # 1.2 添加车辆位置信息日志
         logging.info(f"Vehicle {self.id} position: x={self.current_state.x}, y={self.current_state.y}, lane_id={self.lane_id}")
+        # 1.3 车辆前方交叉口信息
+        # 车辆刚进入道路入口时，发送下一个交叉口信息
+        if isinstance(current_lane, NormalLane) and not self.has_sent_next_junction_msg: # 如果当前车辆在普通车道上且还未发送过消息
+            try:
+                # 获取下一个交叉口信息（不限制位置）
+                next_lane = roadgraph.get_available_next_lane(current_lane.id, self.available_lanes)
+                if next_lane and hasattr(next_lane, 'affJunc') and next_lane.affJunc:
+                    junction_id = next_lane.affJunc
+                    # 发送HasNextJunction消息（仅主车发送）
+                    if self.if_traffic_communication and self.communicator and self.ego_id and self.id == self.ego_id:
+                        self.communicator.send(f"HasNextJunction({self.id},{junction_id});", performative=Performative.Inform)
+                        logging.info(f"Vehicle {self.id} sent HasNextJunction message EARLY when entering road, next junction: {junction_id}, current position: s={self.current_state.s}")
+                        self.has_sent_next_junction_msg = True  # 标记已发送
+            except Exception as e:
+                logging.warning(f"Vehicle {self.id} failed to get next junction info early: {e}")
+        # 1.4 检测行为状态变化
+        # 仅当从其他状态变为STOP时才发送LetStop消息
+        if (self.previous_behaviour != self.behaviour and 
+            self.behaviour == Behaviour.STOP and 
+            self.if_traffic_communication and 
+            self.communicator):
+            self.communicator.send(f"LetStop({self.id});", performative=Performative.Inform)
+            logging.info(f"Vehicle {self.id} sent LetStop message when behaviour changed from {self.previous_behaviour} to STOP")
+        # 新增：
+        self.previous_behaviour = self.behaviour
+        # 二、 外部控制
         # 使用输入指令控制ego车辆（键盘输入左右方向or ad键实现变道）
         self.update_behavior_with_manual_input(manual_input, current_lane)
-        # 8.4 如果车辆在stop_lane上且未到达停车位置
-        if self.lane_id == self.stop_lane and self.current_state.s < self.stop_pos:
+        # 三、 内部控制
+        # 3.1 行为更新
+        # 3.1.1 主动停车
+        # 如果车辆在stop_lane上且未到达停车位置
+        if self.stop_lane and self.lane_id in self.stop_lane and self.current_state.s < self.stop_pos:
             self.behaviour = Behaviour.STOP
+        # 如果车辆已经到达停车位置但未到达stop_until时间，保持STOP行为
+        elif (self.stop_lane and self.lane_id in self.stop_lane and 
+              self.current_state.s >= self.stop_pos and 
+              self.stop_until is not None and 
+              self.current_state.t < self.stop_until):
+            self.behaviour = Behaviour.STOP
+            # 确保在停车期间保持stop_flag为True
+            self.current_state.stop_flag = True
+        # 如果stop_until时间已经到达，清除stop_flag并恢复正常行为
+        elif (self.stop_lane and self.lane_id in self.stop_lane and 
+              self.stop_until is not None and 
+              self.current_state.t >= self.stop_until):
+            self.current_state.stop_flag = False
+            self.behaviour = Behaviour.KL  # 恢复正常行驶行为
+            logging.info(f"Vehicle {self.id} stop_until time {self.stop_until} reached, clearing stop_flag")
+        # 3.1.2 车辆变道行为
         # Lane change behavior··
-        # 车辆变道
         if isinstance(current_lane, NormalLane): # 如果当前车辆在普通车道上
             # 如果车辆行为是变道左
             if self.behaviour == Behaviour.LCL:
@@ -246,7 +385,6 @@ class control_Vehicle():
                 state = self.get_state_in_lane(left_lane)
                 if state.d > -left_lane.width / 2:
                     self.change_to_lane(left_lane)
-
             # 如果车辆行为是变道右
             elif self.behaviour ==Behaviour.LCR:
                 right_lane_id = current_lane.right_lane()
@@ -256,51 +394,62 @@ class control_Vehicle():
                     self.change_to_lane(right_lane)
             # 如果车辆行为是进入 junction
             elif self.behaviour == Behaviour.IN_JUNCTION:
-                self.behaviour = Behaviour.KL
-                        
-            # 如果当前车道不在可用车道中，或者前车处于停止状态，则需要进行变道   
-            elif current_lane.id not in self.available_lanes:  
-                logging.debug(
-                    f"Vehicle {self.id} need lane-change, "
-                    f"since {self.lane_id} not in available_lanes {self.available_lanes}"
+                self.behaviour = Behaviour.KL          
+        # 需要变道的条件：
+        # 1. 当前车道不在可用车道中
+        # 2. 当前车道可用但前方有停止车辆
+        need_lane_change = False
+        lane_change_reason = ""
+        # 条件1：当前车道不在可用车道中
+        if current_lane.id not in self.available_lanes:
+            need_lane_change = True
+            lane_change_reason = f"since {self.lane_id} not in available_lanes {self.available_lanes}"
+        # 条件2：当前车道可用但前方有停止车辆
+        # elif vehicles is not None:
+        #     front_vehicle_status = get_pre_vehicle_status(self, vehicles)
+        #     if front_vehicle_status == Behaviour.STOP:
+        #         need_lane_change = True
+        #         lane_change_reason = "due to stopped vehicle ahead"
+        # 如果需要变道   
+        if need_lane_change:  
+            logging.debug(
+                f"Vehicle {self.id} need lane-change, {lane_change_reason}"
                 )
-
-                if self.behaviour == Behaviour.KL:
-                    # find left available lanes
-                    lane = current_lane
-                    while lane.left_lane() is not None:
-                        lane_id = lane.left_lane()
-                        if lane_id in self.available_lanes:
-                            # 当前条件可以进行左变道
-                            self.communicator.send(f"LeftChangeLaneSafe({self.id})",Performative=Performative.Inform)
-                            self.behaviour = Behaviour.LCL
-                            logging.info(
-                                f"Vehicle {self.id} choose to change Left lane")
-                            break
-                        lane = roadgraph.get_lane_by_id(lane_id)
-                if self.behaviour == Behaviour.KL:
-                    # find right available lanes
-                    lane = current_lane
-                    while lane.right_lane() is not None:
-                        lane_id = lane.right_lane()
-                        if lane_id in self.available_lanes:
-                            # 当前条件可以进行右变道
-                            self.communicator.send(f"RightChangeLaneSafe({self.id})",Performative=Performative.Inform)
-                            self.behaviour = Behaviour.LCR
-                            logging.info(
-                                f"Vehicle {self.id} choose to change Right lane"
-                            )
-                            break
-                        lane = roadgraph.get_lane_by_id(lane_id)
+            if self.behaviour == Behaviour.KL:
+                # find left available lanes
+                lane = current_lane
+                # 只对NormalLane类型的车道调用left_lane方法
+                while isinstance(lane, NormalLane) and lane.left_lane() is not None:
+                    lane_id = lane.left_lane()
+                    if lane_id in self.available_lanes:
+                        # 当前条件可以进行左变道
+                        self.communicator.send(f"LeftChangeLaneSafe({self.id});",performative=Performative.Inform)
+                        self.behaviour = Behaviour.LCL
+                        logging.info(
+                            f"Vehicle {self.id} choose to change Left lane")
+                        break
+                    lane = roadgraph.get_lane_by_id(lane_id)
+                # 只对NormalLane类型的车道调用right_lane方法
+                while isinstance(lane, NormalLane) and lane.right_lane() is not None:
+                    lane_id = lane.right_lane()
+                    if lane_id in self.available_lanes:
+                        # 当前条件可以进行右变道
+                        self.communicator.send(f"RightChangeLaneSafe({self.id});",performative=Performative.Inform)
+                        self.behaviour = Behaviour.LCR
+                        logging.info(
+                            f"Vehicle {self.id} choose to change Right lane"
+                        )
+                        break
+                    lane = roadgraph.get_lane_by_id(lane_id)
                 if self.behaviour == Behaviour.KL:
                     # can not reach to available lanes
                     logging.error(
                         f"Vehicle {self.id} cannot change to available lanes, "
                         f"current lane {self.lane_id}, available lanes {self.available_lanes}"
                     )
-
+        
+        # 3.1.4 车辆进入 junction 行为更新
         # in junction behaviour
-        # 车辆进入 junction
         if self.current_state.s > current_lane.course_spline.s[-1] - 0.2:
             if isinstance(current_lane, NormalLane):
                 next_lane = roadgraph.get_available_next_lane(
@@ -308,6 +457,13 @@ class control_Vehicle():
                 self.lane_id = next_lane.id
                 self.current_state = self.get_state_in_lane(next_lane)
                 current_lane = next_lane
+                # 发送HasNextJunction消息：车辆进入交叉口前（仅主车发送）
+                if self.if_traffic_communication and self.communicator and self.ego_id and self.id == self.ego_id:
+                    # 获取下一个交叉口ID
+                    if hasattr(next_lane, 'affJunc') and next_lane.affJunc:
+                        junction_id = next_lane.affJunc
+                        self.communicator.send(f"HasNextJunction({self.id},{junction_id});", performative=Performative.Inform)
+                        logging.info(f"Vehicle {self.id} sent HasNextJunction message before entering junction {junction_id}")          
             elif isinstance(current_lane, JunctionLane):
                 next_lane_id = current_lane.next_lane_id
                 next_lane = roadgraph.get_lane_by_id(next_lane_id)
@@ -318,13 +474,12 @@ class control_Vehicle():
                 logging.error(
                     f"Vehicle {self.id} Lane {self.lane_id}  is unknown lane type {type(current_lane)}"
                 )
-
             if isinstance(current_lane, JunctionLane):  # in junction
                 self.behaviour = Behaviour.IN_JUNCTION
-                logging.info(f"Vehicle {self.id} is in {self.behaviour}")
+                logging.info(f"Vehicle {self.id} is in {self.behaviour}")  
             else:  # out junction
                 self.behaviour = Behaviour.KL
-    
+
     def set_stop_info(self, stops):
         """设置车辆停车信息"""
         self.stop_info = stops
@@ -334,7 +489,8 @@ class control_Vehicle():
         # 1. 检查变道是否合法
         if decision_output.startswith("CheckChangeLane"):
             lane = roadgraph.get_lane_by_id(self.lane_id)
-            while lane.left_lane() is not None:
+            # 只对NormalLane类型的车道调用left_lane方法
+            while isinstance(lane, NormalLane) and lane.left_lane() is not None:
                 lane_id = lane.left_lane()
                 if lane_id in self.available_lanes:
                     # 当前条件可以进行左变道
@@ -344,7 +500,8 @@ class control_Vehicle():
                         f"Vehicle {self.id} choose to change Left lane")
                     break
                 lane = roadgraph.get_lane_by_id(lane_id)
-            while lane.right_lane() is not None:
+            # 只对NormalLane类型的车道调用right_lane方法
+            while isinstance(lane, NormalLane) and lane.right_lane() is not None:
                 lane_id = lane.right_lane()
                 if lane_id in self.available_lanes:
                     # 当前条件可以进行右变道
@@ -361,7 +518,8 @@ def create_vehicle(vehicle_info: Dict, roadgraph: RoadGraph, vtype_info: Any,
                    vtype: VehicleType,
                    if_traffic_communication: bool = False,
                    if_ego: bool = False,
-                   communication_manager: CommunicationManager = None) -> control_Vehicle:
+                   communication_manager: CommunicationManager = None,
+                   ego_id: str = None) -> control_Vehicle:
 
 
     """
@@ -431,8 +589,22 @@ def create_vehicle(vehicle_info: Dict, roadgraph: RoadGraph, vtype_info: Any,
         stop_until=stop_until,
         if_traffic_communication=if_traffic_communication,
         if_ego=if_ego,
-        communication_manager=communication_manager
+        communication_manager=communication_manager,
+        ego_id=ego_id
     )
+
+    # 新增：车辆创建时立即发送HasNextJunction消息（仅主车发送）
+    if if_traffic_communication and isinstance(roadgraph.get_lane_by_id(lane_id), NormalLane) and ego_id and vehicle_info["id"] == ego_id:
+        try:
+            current_lane = roadgraph.get_lane_by_id(lane_id)
+            next_lane = roadgraph.get_available_next_lane(lane_id, available_lanes)
+            if next_lane and hasattr(next_lane, 'affJunc') and next_lane.affJunc:
+                junction_id = next_lane.affJunc
+                v_new.communicator.send(f"HasNextJunction({vehicle_info['id']},{junction_id});", performative=Performative.Inform)
+                logging.info(f"Vehicle {vehicle_info['id']} sent HasNextJunction message at CREATION, next junction: {junction_id}, initial lane: {lane_id}")
+                v_new.has_sent_next_junction_msg = True
+        except Exception as e:
+            logging.warning(f"Vehicle {vehicle_info['id']} failed to send HasNextJunction message at creation: {e}")
 
     return v_new
 
@@ -608,6 +780,7 @@ def get_pre_vehicle_status(vehicle: control_Vehicle, vehicles: Dict[int,control_
                 # 检查前方车辆是否为停止状态（速度接近0）
                 if abs(other_vehicle.current_state.s_d) <= 0.1:  # 速度小于0.001m/s
                     front_vehicle_status = Behaviour.STOP
+
                     logging.info(
                         f"Vehicle {vehicle.id} detected stopped vehicle {other_id} "
                         f"ahead at distance {distance:.2f}m, speed: {other_vehicle.current_state.s_d:.2f}m/s"

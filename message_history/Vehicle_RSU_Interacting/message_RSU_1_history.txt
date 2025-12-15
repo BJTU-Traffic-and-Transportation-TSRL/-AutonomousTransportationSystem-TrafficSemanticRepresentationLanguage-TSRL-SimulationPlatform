@@ -1,9 +1,9 @@
-InformationRequest2RSU(AV_0,RSU_1);
-getVehicleID(bg.13);
-VehicleInLane(AV_0,bg.13,Front);
-GreaterSpeed(AV_0,bg.13);
+InformationRequest2RSU(0,RSU_1);
+GetVehicleID(12);
+VehicleRightLane(12,0,Front);
+GreaterSpeed(12,0);
 
-getVehicleID(bg.12);
-VehicleInLane(AV_0,bg.12,Front);
-GreaterSpeed(AV_0,bg.12);
+GetVehicleID(11);
+VehicleRightLane(11,0,Front);
+SlowerSpeed(11,0);
 

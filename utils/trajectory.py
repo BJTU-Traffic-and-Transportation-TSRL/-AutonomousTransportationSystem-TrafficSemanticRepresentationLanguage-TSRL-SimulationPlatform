@@ -261,12 +261,20 @@ class Trajectory:
         already_s = 0
         for i in range(len(self.states)):
             csp = lanes[lane_idx].course_spline
+            # 检查course_spline是否为空
+            if csp is None:
+                logging.warning("course_spline is None for lane %s", lanes[lane_idx].id)
+                continue
             if self.states[i].s - already_s > csp.s[-1] - 0.1:
                 if lane_idx < len(lanes) - 1:
                     lane_idx += 1
                     # caution: 0.1 is the overlap length
                     already_s += csp.s[-1] - 0.1
                     csp = lanes[lane_idx].course_spline
+                    # 检查新的course_spline是否为空
+                    if csp is None:
+                        logging.warning("course_spline is None for lane %s", lanes[lane_idx].id)
+                        continue
                 else:
                     del self.states[i:]
                     break

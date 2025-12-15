@@ -1,0 +1,7 @@
+HasPass(PassengerTrain); 
+RouteClear(TrackA); 
+TrackAvailable(TrackA); 
+NoConflict(TrackA); 
+RightSwitchPosition(TrackA); 
+Control(TrackAPassable):-HasPass(PassengerTrain);RouteClear(TrackA);TrackAvailable(TrackA);NoConflict(TrackA);RightSwitchPosition(TrackA); 
+ASK Control(x);

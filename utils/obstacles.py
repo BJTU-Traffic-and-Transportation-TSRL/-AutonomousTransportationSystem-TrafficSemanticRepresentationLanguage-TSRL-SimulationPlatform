@@ -180,6 +180,17 @@ class Obstacle(ABC):
     
     def update_frenet_coord_in_lane(self, lane) -> State:
         course_spline = lane.course_spline
+        
+        # 检查course_spline是否为空
+        if course_spline is None:
+            logging.warning(f"course_spline is None for lane {lane.id} in update_frenet_coord_in_lane method")
+            # 返回一个默认状态
+            return State(s=0, s_d=0, d=0, d_d=0,
+                         x=self.current_state.x,
+                         y=self.current_state.y,
+                         yaw=self.current_state.yaw,
+                         vel=self.current_state.vel,
+                         acc=self.current_state.acc)
 
         rs = course_spline.find_nearest_rs(self.current_state.x,
                                            self.current_state.y)

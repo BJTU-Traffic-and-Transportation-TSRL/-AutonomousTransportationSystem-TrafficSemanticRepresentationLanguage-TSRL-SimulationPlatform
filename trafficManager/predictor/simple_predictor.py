@@ -28,7 +28,29 @@ class UncontrolledPredictor(AbstractPredictor):
                 if vehicle.id in lastseen_vehicles:
                     # 则将该车辆的历史轨迹信息添加到预测结果中
                     # 8.4：需要注意如何更改state中的stop_flag
-                    prediction.results[vehicle] = lastseen_vehicles[vehicle.id].trajectory.states[through_timestep:]
+                    lastseen_vehicle = lastseen_vehicles[vehicle.id]
+                    if lastseen_vehicle.trajectory is not None:
+                        prediction.results[vehicle] = lastseen_vehicle.trajectory.states[through_timestep:]
+                    else:
+                        # 如果trajectory为None，生成一个简单的预测轨迹
+                        lane = roadgraph.get_lane_by_id(vehicle.lane_id)
+                        predict_t = config["MIN_T"]
+                        dt = config["DT"]
+                        s = vehicle.current_state.s
+                        d = vehicle.current_state.d
+                        s_d = vehicle.current_state.s_d
+
+                        predict_trajectory = Trajectory()
+                        for t in np.arange(0, predict_t, dt):
+                            predict_trajectory.states.append(
+                                State(t=t, d=d, s=s, s_d=s_d,))
+                            s += s_d * dt
+                        next_lane = roadgraph.get_next_lane(lane.id)
+                        lanes = [lane, next_lane] if next_lane != None else [lane]
+                        predict_trajectory.frenet_to_cartesian(
+                            lanes, vehicle.current_state)
+
+                        prediction.results[vehicle] = predict_trajectory.states
             else:
                 # 如果该车辆在AOI外
                 lane = roadgraph.get_lane_by_id(vehicle.lane_id)

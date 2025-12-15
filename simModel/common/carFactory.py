@@ -274,6 +274,11 @@ class Vehicle:# 定义车辆类别
         y = centery + (self.length / 2) * sin(yaw)
         angle = (pi / 2 - yaw) * 180 / pi
         
+        # 如果stop_flag为True，强制设置速度为0，确保车辆停止
+        if stop_flag:
+            speed = 0.0
+            accel = 0.0
+        
         if self._iscontroled:
             traci.vehicle.moveToXY(self.id, '', -1, x, y,
                                    angle=angle, keepRoute=2)
@@ -284,9 +289,6 @@ class Vehicle:# 定义车辆类别
             else:
                 traci.vehicle.setAccel(self.id, self.maxAccel)
                 traci.vehicle.setDecel(self.id, -accel)
-            # 7.17: 当stop_flag为True时触发紧急停车流程
-            # 尝试获取车辆的停止状态
-            # print(traci.vehicle.getStopState(self.id)) 
         else:
             traci.vehicle.setLaneChangeMode(self.id, 0)
             traci.vehicle.setSpeedMode(self.id, 0)
@@ -526,6 +528,7 @@ class egoCar(Vehicle):
     ) -> None:
         # 只传递id参数给父类
         super().__init__(id)
+        
         self.deArea = deArea  # 检测区域半径
         self.sceMargin = sceMargin  # 场景边缘距离
         self.id = id # 确保id属性正确赋值

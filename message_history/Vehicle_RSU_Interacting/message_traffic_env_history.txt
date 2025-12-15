@@ -1,0 +1,6 @@
+SelfVehicle(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+StopAt(13,main);

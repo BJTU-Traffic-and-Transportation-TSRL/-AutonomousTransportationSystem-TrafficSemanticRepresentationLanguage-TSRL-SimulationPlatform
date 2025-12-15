@@ -2,6 +2,7 @@
 功能：车辆通信模块
 作者：Wu Hao
 创建日期：2025-07-15
+更新日期：2025-11-08 - 重构：通信器类转移到communicator_category.py
 """
 
 # 目标：7.17，写入每辆车的存储库，存储车辆的交流消息
@@ -17,6 +18,7 @@ from logger import Logger
 from enum import Enum
 from add.display import NonBlockingInferenceWindow, NonBlockingVehicleDisplayWindow
 
+# 迁移回vehicle_communication.py的核心通信类
 class Performative(str, Enum):
     Inform = "Inform" # 告知
     Query = "Query" # 询问
@@ -177,13 +179,12 @@ class CommunicationManager:
         # 直接发送给目标接收者
         target_found = False
         for subscriber_id, subscriber in self.subscribers.items():
-            # 检查接收者ID和类别是否匹配
+            # 检查接收者ID是否匹配
             if subscriber_id == message.receiver_id:
-                # 如果消息指定了接收者类别，则需要匹配类别
-                if message.receiver_category is None or hasattr(subscriber, 'category') and subscriber.category == message.receiver_category:
-                    subscriber.receive_message(message)
-                    target_found = True
-                    break
+                # 发送消息给匹配的接收者，不检查类别
+                subscriber.receive_message(message)
+                target_found = True
+                break
         # 如果没有找到特定接收者，广播给所有通信器（除了发送者本身）
         if not target_found:
             for communicator_id, communicator in self.subscribers.items():
@@ -306,219 +307,4 @@ class CommunicationManager:
                 self.logger.info(f"文件不存在，无需清空: {file_path}")
         except Exception as e:
             self.logger.error(f"清空display_text文件内容时出错: {e}")
-
-
-class VehicleCommunicator(Communicator):
-    """车辆通信器，负责车辆间通信"""
-    def __init__(self, vehicle_id, vehicle: 'control_Vehicle', communication_manager: CommunicationManager, if_egoCar: bool = False):
-        super().__init__(vehicle_id, communication_manager)
-        self.if_egoCar = if_egoCar
-        self.vehicle = vehicle
-        self.id = vehicle_id
-        # 注册到通信管理器
-        communication_manager.register(self)
-    
-    # 定义方法：主动发送消息
-    def send(self, content: str, target_id: str = None, target_category: Communicator = None, performative: Performative = Performative.Other):
-        """主动发送消息"""
-        # 文本前缀，取决于是否为egoCar
-        prefix = f"Send by HV {self.id}:" if self.if_egoCar else f"Send by RV {self.id}:"
-        # 完整文本
-        full_content = f"{prefix}{content}"
-        # 发送消息
-        message = Message(
-            sender_id=self.id,
-            sender_category=self,
-            receiver_id=target_id or "broadcast",
-            receiver_category=target_category,
-            content=content,
-            performative=performative
-        )
-        # 在终端输出
-        print(full_content)
-        # 保存显示文本
-        self._save_display_text(full_content)
-        # 存储消息到本地消息历史列表
-        self.message_history.append_message(message)
-        # 将消息真正发送出去
-        self.communication_manager.send_message(message)
-        # 保存消息历史
-        self._save_message_history()
-
-    def receive_message(self, message: Message):
-        """接收消息并处理"""
-        if message.sender_id == self.id:
-            return  # 忽略自己发送的消息
-        # 生成回复内容
-        if self.if_egoCar:
-            reply_prefix = f"Received by HV {self.id}:"
-        else:
-            reply_prefix = f"Received by RV {self.id}:"
-        # 提取原始内容（去除发送者前缀）
-        content = message.content
-        reply_content = f"{reply_prefix}{content}"
-        # 存储消息到本地列表
-        reply_message = Message(
-            sender_id=message.receiver_id,
-            sender_category=self,
-            receiver_id=message.sender_id,
-            receiver_category=message.sender_category,
-            content=content,
-            performative=Performative.Inform
-        )
-        # 添加消息
-        self.message_history.append_message(reply_message)
-        # 保存显示文本
-        self._save_display_text(reply_content)
-        # 保存消息历史
-        self._save_message_history()
-        # 在终端输出接收信息
-        print(reply_content)
-        # 根据接收到的内容执行相应操作
-        self.process_received_content(message)
-
-    def process_received_content(self, messages):
-        """处理接收到的消息内容"""
-        # 判断messages是否为列表，分别处理
-        if isinstance(messages, list):
-            for message in messages:
-                self.Message_process(message)
-        else:
-            self.Message_process(messages)
-
-    def Message_process(self, message: Message):
-        """处理消息内容，返回处理后的字符串"""
-        content = message.content
-        # # 1. 同车道相对关系
-        # if "VehicleInLane" in content:
-        #     # 检查VehicleInLane()中通过,相隔的第三个字符串是否为Front
-        #     # 提取VehicleInLane括号中的内容
-        #     import re
-        #     match = re.search(r'VehicleInLane\(([^)]+)\)', content)
-        #     if match:
-        #         # 按逗号分割参数
-        #         params = match.group(1).split(',')
-        #         # 检查是否有至少3个参数，且第3个参数（索引为2）是否为Front——同车道前方有其它车
-        #         if len(params) >= 3 and params[2].strip() == "Front":
-                    
-
-class RSUCommunicator(Communicator):
-    """路侧单元通信器，负责路侧单元的通信"""
-    def __init__(self, rsu_id: str, rsu: 'control_RSU', communication_manager: CommunicationManager):
-        super().__init__(rsu_id, communication_manager)
-        self.id=rsu_id
-        self.rsu = rsu
-        self.category = self
-        # 添加vehicles和roadgraph参数的存储
-        self.vehicles = None
-        self.roadgraph = None
-        # 注册到通信管理器
-        communication_manager.register(self)
-    
-    # 添加设置vehicles和roadgraph的方法
-    def set_context(self, vehicles: Dict[str, 'control_Vehicle'], roadgraph):
-        """设置上下文参数"""
-        self.vehicles = vehicles
-        self.roadgraph = roadgraph
-    
-    # 定义方法：主动发送消息
-    def send(self, content: str, target_id: str = None, performative: Performative = Performative.Other):
-        """主动发送消息"""
-        # 文本前缀
-        prefix = f"Send by RSU {self.id}:"
-        # 完整文本
-        full_content = f"{prefix}{content}"
-        # 发送消息
-        message = Message(
-            sender_id=self.id,
-            sender_category=self,
-            receiver_id=target_id or "broadcast",
-            receiver_category=None,  # RSU发送消息时可能没有指定接收者类别
-            content=content,  # 发送原始内容，不带前缀
-            performative=performative
-        )
-        # 在终端输出
-        print(full_content)
-        # 保存显示文本
-        self._save_display_text(full_content)
-        # 存储消息到本地消息历史列表
-        self.message_history.append_message(message)
-        # 将消息发送出去
-        self.communication_manager.send_message(message)
-        # 保存消息历史
-        self._save_message_history()
-
-    def receive_message(self, message: Message):
-        """接收消息并处理"""
-        if message.sender_id == self.id:
-            return  # 忽略自己发送的消息
-        # 生成回复内容
-        reply_prefix = f"Received by RSU {self.id}:"
-        # 提取原始内容（去除发送者前缀）
-        # 添加对消息内容格式的检查，防止索引越界
-        if ":" in message.content:
-            content = message.content.split(":", 1)[1].strip()
-        else:
-            # 如果消息内容中没有冒号，使用完整内容
-            content = message.content
-        reply_content = f"{reply_prefix}{content}"
-        # 存储消息到本地列表
-        reply_message = Message(
-            sender_id=message.receiver_id,
-            sender_category=self,
-            receiver_id=message.sender_id,
-            receiver_category=message.sender_category,
-            content=content,  # 存储原始内容，不带前缀
-            performative=Performative.Other
-        )
-        # 添加消息
-        self.message_history.append_message(reply_message)
-        # 保存显示文本
-        self._save_display_text(reply_content)
-        # 保存消息历史
-        self._save_message_history()
-        # 在终端输出接收信息
-        print(reply_content)
-        # 根据接收到的内容执行相应操作
-        self.process_received_content(message)
-
-    def process_received_content(self, message):
-        """处理接收到的消息内容"""
-        # 判断message是否为列表，分别处理
-        if isinstance(message, list):
-            for msg in message:
-                self.Message_process(msg)
-        else:
-            self.Message_process(message)
-        
-
-    def Message_process(self, message: Message):
-        # 处理对于RSU探测范围内的车辆信息请求消息
-        if message.content.startswith("InformationRequest2RSU"):
-            # 检查是否已设置上下文参数
-            if self.vehicles is None or self.roadgraph is None:
-                self.logger.error("Context parameters (vehicles or roadgraph) not set for RSUCommunicator")
-                return
-            # RSU使用detect_vehicles_in_range方法获取范围内车辆信息并回复message发出者
-            # 获取在RSU探测范围内的车辆信息
-            detected_messages = self.rsu.detect_vehicles_in_range(self.vehicles, self.roadgraph, message)
-            # 将检测到的车辆信息打包并发送给Ego车辆
-            if detected_messages:  
-                # 将列表中的字典转换为多行字符串，每个键值对占一行
-                formatted_messages = []
-                for msg in detected_messages:
-                    if isinstance(msg, dict):
-                        # 将字典中的每个键值对转换为字符串，并用换行符连接
-                        dict_lines = [f"{key}: {value}" for key, value in msg.items()]
-                        formatted_messages.append("\n".join(dict_lines))
-                    else:
-                        # 如果不是字典，直接转换为字符串
-                        formatted_messages.append(str(msg))
-                # 用换行符连接所有消息
-                detected_messages_str = "\n".join(formatted_messages)
-                # RSU发送回复消息给Ego车辆
-                self.send(detected_messages_str, message.sender_id, performative=Performative.Inform)
-            else:
-                # 如果没有检测到车辆，发送空结果消息
-                self.send("No vehicles detected in range", message.sender_id, performative=Performative.Inform)
 

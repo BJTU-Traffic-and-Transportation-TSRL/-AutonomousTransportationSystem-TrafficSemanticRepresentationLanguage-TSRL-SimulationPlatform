@@ -1,8 +1,8 @@
-# ATSISP项目概览 (IFLOW上下文)
+# ATSISP项目概览 
 
 ## 项目简介
 
-本项目是基于LimSim的自主交通语义交互仿真平台(Autonomous Transportation Semantic Interaction Simulation Platform, ATSISP)。它扩展了LimSim的功能，加入了车辆间以及车辆与路侧单元(RSU)的语义通信交互能力，并集成了基于时空间逻辑(TSRL)的推理引擎，以模拟和分析交通场景下的复杂交互行为。
+本项目是基于LimSim的自主交通语义交互仿真平台(Autonomous Transportation Semantic Interaction Simulation Platform, ATSISP)。它扩展了LimSim的功能，加入了车辆间以及车辆与路侧单元(RSU)的语义通信交互能力，并集成了基于交通语义表示语言(TSRL)的推理引擎，以模拟和分析交通场景下的复杂交互行为。
 
 项目主要使用Python编写，依赖SUMO (Simulation of Urban MObility)进行底层交通仿真。
 
@@ -45,25 +45,86 @@
 
 ### 环境要求
 
-*   Python 3.9 - 3.11
+*   3.9.0 <= Python <= 3.11.0
 *   SUMO >= 1.15.0
 *   依赖库: `dearpygui`, `matplotlib`, `numpy`, `pandas`, `pynput`, `PyYAML`, `rich`, `sumolib`, `traci` (详见 `requirements.txt`)
 
-### 安装与配置
+### Quick Start
 
-1.  安装Python和SUMO环境
-2.  克隆项目代码
-3.  安装依赖: `pip install -r requirements.txt`
+1.  环境配置
+    1. Python
+    
+        **推荐版本**: 3.9.0 <= Python <= 3.11.0
+    2. SUMO
+        1. 安装SUMO（Windows）
+        
+            **推荐版本**: SUMO >= 1.15.0 (Recommended version: 1.15.0)
+            
+            *该版本的SUMO已包含在项目文件夹中，无需额外安装(`sumo-1.15.0`)。*
+        2. 配置环境变量
+            1. 将SUMO的 `bin/` 目录添加到**系统变量and环境变量**的 `PATH` 中。
+            2. 新建并设置环境变量 `SUMO_HOME` 为SUMO安装目录 (e.g., `export SUMO_HOME=./sumo-1.15.0/`)
+            3. 验证安装
+                1. 打开命令行终端
+                2. 输入 `sumo --version`
+                3. 确认输出显示SUMO版本为1.15.0
+                4. 输入 `sumo-gui`
+                5. 确认SUMO GUI窗口打开，显示空的交通场景
+    3. Anylogic
+        1. 安装Anylogic（Windows）
+        
+             https://www.anylogic.com/downloads/
+            
+            **推荐版本**: 8.9.6 Personal Learning Edition（需手动安装）
+        2. 配置Pypeline：在Anylogic中使用Python
+            1. https://github.com/the-anylogic-company/AnyLogic-Pypeline/releases 下载Pypeline.jar v1.9.6，并解压到本地
 
-### 运行示例
+                *所需的Pypeline.jar已包含在项目文件夹中，无需额外安装(`.venv\Pypeline.jar`)。*
 
-*   **基础实时仿真**: `python ModelExample.py`
-*   **前向碰撞预警场景**: `python ForwardCollisionWarning.py`
-*   **车辆-RSU交互场景**: `python Vehicle_RSU_Interacting.py`
-*   **人车加速交互场景**: `python Human_Vehicle_Interacting.py`
-*   **车辆交互场景**: `python Vehicle_Vehicle_Interacting.py`
-*   **仿真回放**: `python ReplayExample.py`
-*   **场景选择器 (推荐)**: `python tkinter_scenario_selector.py` (使用Tkinter GUI)
+            2. 打开已经安装好的Anylogic，找到”**面板（Palette）**“>>左下角的“+”>>**管理库……**
+
+                ![Pypeline2Anylogic_step1](assets_new\Pypeline2Anylogic_1.png)
+            3. 点击“**添加**”，找到下载好的Pypeline.jar文件，添加到Anylogic中
+                ![Pypeline2Anylogic_step2](assets_new\Pypeline2Anylogic_2.png)
+            4. 点击“**确定**”，Pypeline库就会被添加到Anylogic中
+2.  安装所需依赖: 
+
+    `cd ATSISP
+pip install -r requirements.txt`
+
+    `pip install -r requirements.txt`
+
+### Instructions
+
+1.  **交通语义交互场景选择界面**: 双击批处理文件`Start.bat`，即可打开交通语义交互场景选择界面。
+
+    ![scenario_selector](assets_new\Start.png)
+2.  **选择所需的交通方式**: 点击场景选择器中的交通方式按钮，即可启动对应的交通语义交互场景。
+    1. 道路交通场景
+
+        点击**道路交通场景**按钮，即可启动道路交通场景的仿真。
+
+        在新弹出的窗口中，用户可以选择不同的场景类型，如**典型交通场景**、**自定义交通场景**等。
+
+        ![roadsys_scenario](assets_new\RoadSys_Transportation_Senarios.png)
+
+        * 典型交通场景
+        
+            点击**典型交通场景**按钮，即可启动典型交通场景的仿真。
+            
+            在新弹出的窗口中，用户可以选择不同的典型交通场景，如**前向碰撞预警场景**、**车辆-RSU交互场景**等。
+            
+            ![typical_scenario](assets_new\typical_roadway_senarios.png)
+    2. 轨道交通场景
+        
+        点击**轨道交通场景**按钮，即可启动轨道交通场景的仿真。
+        
+        在新弹出的窗口中，用户可以选择不同的轨道交通场景，具体的场景介绍可以在弹窗文字中进行查看。
+        
+        ![railway_scenario](assets_new\railway_senarios.png)
+    3. 水运交通场景
+        
+        点击**水运交通场景**按钮，即可启动水运交通场景的仿真。
 
 ### 自定义场景创建
 

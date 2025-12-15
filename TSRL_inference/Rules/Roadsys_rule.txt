@@ -1,8 +1,15 @@
 //1.条件检查一律以Check开始
-//
+//2.相同的谓词不能同时出现在推理前提和结论中
 
-CheckChangeLane(y):-SelfVehicle(y),EmergencyStation(x); 
-CheckChangeLane(x):-VehicleInLane(x,y,Front),GreaterSpeed(x,y);
-KeepLane(x):-VehicleInLane(x,y,Front),GreaterSpeed(y,x);
-LeftChangeLane(x):-CheckChangeLane(x),LeftChangeLaneSafe(x);
-RightChangeLane(x):-CheckChangeLane(x),RightChangeLaneSafe(x);
+// 车辆决策推理：
+LetStopBeforeJunction(x):-HasNextJunction(x,y),Congestion(y);//y拥堵，x车前方是交叉口y
+Congestion(y):-StopAt(x,y),IsJunction(y);//x停车在y，y是交叉口
+CheckChangeLane(y):-VehicleInLane(x,y,Front),EmergencyStation(x);//x在y的前面，x紧急停止
+CheckChangeLane(y):-VehicleInLane(y,x,Rear),EmergencyStation(x);//y在x的后面，x紧急停止
+CheckChangeLane(x):-VehicleInLane(y,x,Front),GreaterSpeed(x,y);//y在x的前面，且x的速度比y更快
+CheckChangeLane(x):-VehicleInLane(y,x,Front),SlowerSpeed(y,x);//y在x的前面，且y的速度比x更慢
+KeepLane(x):-VehicleInLane(y,x,Front),GreaterSpeed(y,x);//y在x的前面，且y的速度比x更快
+KeepLane(x):-VehicleInLane(y,x,Front),SlowerSpeed(x,y);//y在x的前面，且x的速度比y更慢
+KeepLane(x):-VehicleInLane(y,x,Front),EqualSpeed(x,y);//y在x的前面，且x的速度比y更慢
+LeftChangeLane(x):-CheckChangeLane(x),LeftChangeLaneSafe(x);//x的左车道可以变道
+RightChangeLane(x):-CheckChangeLane(x),RightChangeLaneSafe(x);//x的右车道可以变道

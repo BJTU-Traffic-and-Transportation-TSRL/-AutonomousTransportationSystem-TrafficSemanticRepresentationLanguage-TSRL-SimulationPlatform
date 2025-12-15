@@ -1,3 +1,7 @@
+# 仿真总体设置
+# 仿真总时间
+MAX_SIM_TIME: 120.0 # max simulation time [s]
+
 # 动画开关
 ANIMATION: False
 
@@ -12,6 +16,9 @@ EGO_PLANNER: True # whether exist an ego planner
 
 # 是否在规划模块中使用决策器结果
 USE_DECISION_MAKER: True # whether use decision maker results in planning module
+
+# Ego车辆检测区域半径 [米]
+DEAREA: 100.0 # Ego vehicle detection area radius [m]
 
 # 最大道路宽度 [米]（已弃用）
 MAX_ROAD_WIDTH: 3.5 # [DEPRECATED]: maximum road width [m]
@@ -46,6 +53,8 @@ MAX_CURVATURE: 1.0 # maximum curvature [1/m]
 ############
 # 决策器模块配置
 ###########
+# TSRL决策器读取消息历史数量
+NUM_READMESSAGES: 40 # number of read messages
 
 # 决策间隔时间 [秒]
 DECISION_INTERVAL: 3.0 #[s] 

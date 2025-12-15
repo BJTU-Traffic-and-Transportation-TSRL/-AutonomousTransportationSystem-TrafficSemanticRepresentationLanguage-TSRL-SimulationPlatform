@@ -1,0 +1,14 @@
+RightChangeLane(AV);
+SelfVehicle(AV);
+EmergencyStation(stop_1);
+EmergencyStation(stop_1);
+CheckChangeLane(AV);
+RightChangeLane(AV);
+RightChangeLane(AV);
+RightChangeLane(AV);
+RightChangeLane(AV);
+RightChangeLane(AV);
+
+CheckChangeLane(y):-SelfVehicle(y),EmergencyStation(x);
+
+ASK CheckChangeLane(y)

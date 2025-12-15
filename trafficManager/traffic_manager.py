@@ -16,20 +16,20 @@ from pynput import keyboard
 from read_stop_info import extract_stop_info
 
 from common.observation import Observation
-from common.vehicle import Behaviour, control_Vehicle,VehicleType, create_vehicle, create_vehicle_lastseen
+from common.vehicle import Behaviour, control_Vehicle,VehicleType, create_vehicle, create_vehicle_lastseen, get_pre_vehicle_status
 from common.facility import control_RSU, create_rsu, create_rsu_lastseen, RSUType
-
-from common.vehicle import get_pre_vehicle_status
 
 from trafficManager.decision_maker.TSRL_decision_maker import (
     EgoDecisionMaker,
     MultiDecisionMaker,
 )
-from planner.ego_vehicle_planner import EgoPlanner
-from planner.multi_vehicle_planner import MultiVehiclePlanner
+from planner.TSRL_ego_vehicle_planner import EgoPlanner
+from planner.TSRL_multi_vehicle_planner import MultiVehiclePlanner
 from predictor.simple_predictor import UncontrolledPredictor
 from simModel.egoTracking.model import Model
-from TSRL_interaction.vehicle_communication import CommunicationManager, RSUCommunicator,VehicleCommunicator, Performative
+from TSRL_interaction.vehicle_communication import CommunicationManager, Performative
+from TSRL_interaction.communicator_category import RSUCommunicator, VehicleCommunicator, EnvCommunicator
+from trafficManager.common.environment_adapter import EnvironmentAdapter
 from trafficManager.decision_maker.abstract_decision_maker import AbstractEgoDecisionMaker, EgoDecision
 from trafficManager.planner.abstract_planner import AbstractEgoPlanner, AbstractMultiPlanner
 from trafficManager.predictor.abstract_predictor import AbstractPredictor
@@ -95,6 +95,14 @@ class TrafficManager:
         self.if_traffic_communication = model.communication
         if self.if_traffic_communication:
             self.communication_manager = CommunicationManager(self.sumo_model.Scenario_Name)
+            # 初始化环境通信器，用于发送交叉口信息
+            self.env_adapter = EnvironmentAdapter(self.sumo_model)
+            self.env_communicator = EnvCommunicator(
+                env_id="traffic_env",
+                communication_manager=self.communication_manager
+            )
+            # 设置环境适配器
+            self.env_communicator.set_context(self.env_adapter)
 
         self.predictor = predictor if predictor is not None else UncontrolledPredictor()
         self.ego_decision = ego_decision if ego_decision is not None else EgoDecisionMaker(self.sumo_model.Scenario_Name)
@@ -108,6 +116,9 @@ class TrafficManager:
         
         # 9.9 存储用户输入
         self.user_command = ""
+        
+        # 添加标志：是否已发送交叉口信息
+        self.junction_info_sent = False
 
     # 从键盘中获取用户的输入
     def _set_up_keyboard_listener(self):
@@ -125,6 +136,8 @@ class TrafficManager:
             elif key == keyboard.Key.right or key == keyboard.KeyCode.from_char(
                     'd'):
                 KEY_INPUT = 'Right'
+            elif key == keyboard.Key.up:
+                KEY_INPUT = 'LetAccelerate'
 
         listener = keyboard.Listener(on_press=on_press)
         listener.start()  # start to listen on a separate thread
@@ -132,6 +145,13 @@ class TrafficManager:
     # 9.9 新增处理用户输入的方法
     def _handle_user_input(self, user_input: str):
         """处理用户输入"""
+        # 读取来自tkinter_scenario_selector的键盘输入信号
+        try:
+            self.user_command = user_input
+            os.remove(key_input_file)
+            logging.info(f"Read key input from {key_input_file}: {KEY_INPUT}")
+        except Exception as e:
+            logging.warning(f"Failed to read key input file: {e}")
         self.user_command = user_input
         logging.info(f"Received user command: {user_input}")
     
@@ -149,7 +169,6 @@ class TrafficManager:
         Finally, it returns the output trajectories.
         """
         global KEY_INPUT # 2025.5.20
-
         start = time.time()
 
         current_time_step = int(T / self.config["DT"])
@@ -169,6 +188,10 @@ class TrafficManager:
         facilities = self.extract_facilities(facilities, roadgraph)
         # 9.16 处理RSU与Ego车辆的交互
         self._handle_rsu_ego_interaction(vehicles, facilities, roadgraph, current_time_step)
+        # 发送交叉口信息（只在开始时发送一次）
+        if self.if_traffic_communication and hasattr(self, 'env_communicator') and not self.junction_info_sent:
+            self._send_junction_info()
+            self.junction_info_sent = True
         # 提取历史轨迹信息
         history_tracks = self.extract_history_tracks(current_time_step,
                                                      vehicles)
@@ -202,11 +225,15 @@ class TrafficManager:
             vehicle.front_vehicle_status = get_pre_vehicle_status(vehicle, vehicles)
             # 9.9 使用用户输入的命令更新车辆行为
             if vehicle_id == self.sumo_model.ego.id and self.user_command:
-                vehicle.update_behaviour(roadgraph, self.user_command)
+                vehicle.update_behaviour(roadgraph, self.user_command, vehicles)
                 self.user_command = ""  # 清除已处理的命令
             else:
-                vehicle.update_behaviour(roadgraph, KEY_INPUT) # 更新车辆行为，不会对通信模块造成影响
+                vehicle.update_behaviour(roadgraph, KEY_INPUT, vehicles) # 更新车辆行为，不会对通信模块造成影响
             KEY_INPUT = ""
+            
+            # Set context for vehicle communicators to enable EmergencyStation processing
+            if self.if_traffic_communication and vehicle.communicator and hasattr(vehicle.communicator, 'set_context'):
+                vehicle.communicator.set_context(vehicles, roadgraph)
 
         # make sure ego car exists when EGO_PLANNER is used
         if self.config["EGO_PLANNER"]:
@@ -217,21 +244,22 @@ class TrafficManager:
             ego_id = ego_car_info["id"]
             if ego_id is None:
                 raise ValueError("Ego car is not found when EGO_PLANNER is used.")
-
         """
-        # 3. 决策模块：根据感知和预测结果，生成决策
+        # 3. 决策模块：根据感知和预测结果，生成AOI内各车辆的决策
             决策模块在self.config["USE_DECISION_MAKER"]=True时起效果
             该模块的self.ego_decision.make_decision默认不作用，除非添加特定的决策算法
-            9.18 尝试添加TSRL决策模块
+            9.18 尝试将Ego_ego_decision.make_decision更改为TSRL决策模块
         """
         ego_decision: EgoDecision = None
-        # 如果使用Ego决策模块且当前时间步长距离上次决策的时间大于等于设置的决策间隔
+        # 如果使用Vehicle决策模块且当前时间步长距离上次决策的时间大于等于设置的决策间隔
         if self.config["USE_DECISION_MAKER"] and T - self.last_decision_time >= self.config["DECISION_INTERVAL"]:
             if self.config["EGO_PLANNER"]:
-               ego_decision = self.ego_decision.make_decision(
-                    T , observation, roadgraph, prediction)
+                # if EGO_PLANNER is determined to be used, then make decision for ego car
+                ego_decision = self.ego_decision.make_decision(
+                    T , observation, roadgraph, prediction, self.config)
+            # if USE_DECISION_MAKER is determined to be used, then make decision for other vehicles
             self.mul_decisions = self.multi_decision.make_decision(
-                T, observation, roadgraph, prediction, self.config,num_readmessages=10)
+                T, observation, roadgraph, prediction, self.config)
             self.last_decision_time = T
         """
         # 4. 轨迹生成模块：根据决策，生成轨迹
@@ -264,17 +292,72 @@ class TrafficManager:
             for rsu_id, rsu in facilities.items())
         for vehicle_id, trajectory in result_paths.items():
             self.lastseen_vehicles[vehicle_id].trajectory = trajectory
-            output_trajectories[vehicle_id] = data_copy.deepcopy(trajectory)
-            del output_trajectories[vehicle_id].states[0]
+            # 检查trajectory是否为None，避免AttributeError
+            if trajectory is not None:
+                output_trajectories[vehicle_id] = data_copy.deepcopy(trajectory)
+                # 检查states列表是否为空，避免索引越界
+                if hasattr(output_trajectories[vehicle_id], 'states') and len(output_trajectories[vehicle_id].states) > 0:
+                    del output_trajectories[vehicle_id].states[0]
+                else:
+                    logging.warning(f"Vehicle {vehicle_id} has empty trajectory states or no states attribute")
+            else:
+                logging.warning(f"Vehicle {vehicle_id} has None trajectory, skipping")
+                output_trajectories[vehicle_id] = Trajectory()  # 创建空轨迹作为默认值
 
         # update self.T
         self.time_step = current_time_step
-
         logging.info(f"Current frame: {current_time_step}. One loop Time: {time.time() - start}")
         logging.info("------------------------------")
-
         return output_trajectories
-
+    
+    def _send_junction_info(self):
+        """
+        发送交叉口信息到通信系统
+        通过EnvCommunicator主动发送交叉口信息
+        读取net.xml文件，过滤掉type="dead_end"的junction
+        """
+        try:
+            # 获取网络文件路径
+            net_file_path = self.sumo_model.netFile
+            
+            # 解析net.xml文件
+            import xml.etree.ElementTree as ET
+            tree = ET.parse(net_file_path)
+            root = tree.getroot()
+            
+            # 查找所有junction元素，过滤掉type="dead_end"的junction
+            junctions = root.findall('.//junction')
+            valid_junction_ids = []
+            
+            for junction in junctions:
+                junction_id = junction.get('id')
+                junction_type = junction.get('type', '')  # 获取type属性，如果不存在则为空字符串
+                
+                # 只发送非dead_end和internal类型的junction
+                if junction_type != 'dead_end' and junction_type != 'internal':
+                    valid_junction_ids.append(junction_id)
+            
+            # 为每个有效的交叉口单独发送消息
+            if self.env_communicator:
+                for junction_id in valid_junction_ids:
+                    message_content = f"IsJunction({junction_id});"
+                    self.env_communicator.send(message_content, performative=Performative.Inform)
+                
+                logging.info(f"Sent junction info: {len(valid_junction_ids)} junctions (filtered out dead_end junctions)")
+        except Exception as e:
+            logging.error(f"Error sending junction info: {e}")
+            # 如果读取net.xml失败，回退到原来的方法
+            try:
+                junction_ids = self.env_adapter.get_junction_ids()
+                if self.env_communicator:
+                    for junction_id in junction_ids:
+                        message_content = f"IsJunction({junction_id});"
+                        self.env_communicator.send(message_content, performative=Performative.Inform)
+                    
+                    logging.info(f"Sent junction info (fallback): {len(junction_ids)} junctions")
+            except Exception as fallback_error:
+                logging.error(f"Fallback method also failed: {fallback_error}")
+    
     # 9.16新增 处理RSU与Ego车辆的交互
     def _handle_rsu_ego_interaction(self, vehicles: Dict[str, control_Vehicle], 
                                    facilities: Dict[str, control_RSU], 
@@ -326,7 +409,12 @@ class TrafficManager:
                 continue
             
             # 7.27：添加边界检查
-            trajectory_states = self.lastseen_vehicles[vehicle_id].trajectory.states
+            trajectory = self.lastseen_vehicles[vehicle_id].trajectory
+            if trajectory is None:
+                history_tracks[vehicle_id] = []
+                continue
+                
+            trajectory_states = trajectory.states
             start_idx = min(self.time_step, len(trajectory_states))
             end_idx = min(current_time_step, len(trajectory_states))
             
@@ -427,7 +515,8 @@ class TrafficManager:
             if len(vehicle["xQ"]) == 0 or len(vehicle["laneIDQ"]) == 0 or len(vehicle["yQ"]) == 0:
                 continue
             # 如果车辆已出现在场景中，且之前有轨迹信息
-            if vehicle["id"] in self.lastseen_vehicles  and \
+            if vehicle["id"] in self.lastseen_vehicles and \
+                self.lastseen_vehicles[vehicle["id"]].trajectory is not None and \
                 len(self.lastseen_vehicles[vehicle["id"]].trajectory.states)> through_timestep:
                 last_state = self.lastseen_vehicles[
                     vehicle["id"]].trajectory.states[through_timestep]
@@ -447,7 +536,7 @@ class TrafficManager:
                 # 8.3 修改create_vehicle方法，使其能够传递停车信息
                 # 8.19 新增：创建车辆通信功能
                 vehicle_temp = create_vehicle(
-                    vehicle, roadgraph, vtype_info, T, VehicleType.IN_AOI,self.if_traffic_communication,if_ego=False,communication_manager=self.communication_manager)
+                    vehicle, roadgraph, vtype_info, T, VehicleType.IN_AOI,self.if_traffic_communication,if_ego=False,communication_manager=self.communication_manager,ego_id=ego_car.id if ego_car else None)
                 # 8.20 新增：将非Ego车辆添加到通信管理器中
                 if self.if_traffic_communication:
                     vehicle_temp.init_communication(self.communication_manager,if_egoCar=False)
@@ -466,7 +555,7 @@ class TrafficManager:
             if vehicle["laneIDQ"] and roadgraph.get_lane_by_id(vehicle["laneIDQ"][-1]) is not None:
                 # 8.19 新增：创建车辆通信功能
                 vehicle_temp = create_vehicle(
-                    vehicle, roadgraph, vtype_info, T, VehicleType.OUT_OF_AOI,self.if_traffic_communication,if_ego=False,communication_manager=self.communication_manager)
+                    vehicle, roadgraph, vtype_info, T, VehicleType.OUT_OF_AOI,self.if_traffic_communication,if_ego=False,communication_manager=self.communication_manager,ego_id=ego_car.id if ego_car else None)
                 # 8.20 新增：将非Ego车辆添加到通信管理器中
                 if self.if_traffic_communication:
                     vehicle_temp.init_communication(self.communication_manager,if_egoCar=False)
@@ -501,26 +590,39 @@ class TrafficManager:
             return None
 
         ego_id = ego_info["id"]
-        if ego_id in self.lastseen_vehicles and \
-            len(self.lastseen_vehicles[ego_id].trajectory.states)> through_timestep:
-            last_state = self.lastseen_vehicles[ego_id].trajectory.states[
-                through_timestep]
-            ego_car = create_vehicle_lastseen(
-                ego_info,
-                self.lastseen_vehicles[ego_id],
-                roadgraph,
-                T,
-                last_state,
-                VehicleType.EGO,
-                sim_mode
-            )
-        else:# 初次出现自车
+        if ego_id in self.lastseen_vehicles:
+            # 自车已存在
+            if self.lastseen_vehicles[ego_id].trajectory is not None and len(self.lastseen_vehicles[ego_id].trajectory.states) > through_timestep:
+                # 有足够的轨迹状态，使用create_vehicle_lastseen
+                last_state = self.lastseen_vehicles[ego_id].trajectory.states[through_timestep]
+                ego_car = create_vehicle_lastseen(
+                    ego_info,
+                    self.lastseen_vehicles[ego_id],
+                    roadgraph,
+                    T,
+                    last_state,
+                    VehicleType.EGO,
+                    sim_mode
+                )
+            else:
+                # 轨迹状态不足，创建新的自车对象但保留原有通信器
+                vtype_info = self.sumo_model.allvTypes[ego_info["vTypeID"]]
+                ego_car = create_vehicle(ego_info, roadgraph, vtype_info, T,
+                                        VehicleType.EGO, self.if_traffic_communication, if_ego=True, communication_manager=self.communication_manager, ego_id=ego_id)
+                
+                # 保留原有通信器和消息历史
+                original_vehicle = self.lastseen_vehicles[ego_id]
+                if self.if_traffic_communication and hasattr(original_vehicle, 'communicator') and original_vehicle.communicator is not None:
+                    # 复制原有通信器的消息历史到新的通信器
+                    ego_car.init_communication(self.communication_manager, True)
+                    ego_car.communicator.message_history = original_vehicle.communicator.message_history
+        else: 
+            # 初次出现自车，全新创建
             vtype_info = self.sumo_model.allvTypes[ego_info["vTypeID"]]
-            # 8.19 新增：通信是否开启的控制参数 if_traffic_communication
             ego_car = create_vehicle(ego_info, roadgraph, vtype_info, T,
-                                        VehicleType.EGO,self.if_traffic_communication,if_ego=True,communication_manager=self.communication_manager)
+                                        VehicleType.EGO, self.if_traffic_communication, if_ego=True, communication_manager=self.communication_manager, ego_id=ego_id)
             # 8.19 新增：将自车添加到通信管理器中
             if self.if_traffic_communication:
-                ego_car.init_communication(self.communication_manager,True)
+                ego_car.init_communication(self.communication_manager, True)
                 ego_car.communicator.send(f"SelfVehicle({ego_car.id});")
         return ego_car

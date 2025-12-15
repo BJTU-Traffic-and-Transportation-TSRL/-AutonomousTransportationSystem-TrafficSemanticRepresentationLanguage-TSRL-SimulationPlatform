@@ -48,15 +48,22 @@ class action_name_to_behaviour_mapper:
         "Decelerate": Behaviour.DC,
         "LeftChangeLane": Behaviour.LCL,  
         "RightChangeLane": Behaviour.LCR,
-        "Stop": Behaviour.STOP,
+        "LetStop": Behaviour.STOP,
         "EnterJunction": Behaviour.IN_JUNCTION,
         "Overtake": Behaviour.OVERTAKE,
         "KL": Behaviour.KL,
         "AC": Behaviour.AC,
         "DC": Behaviour.DC,
-        "STOP": Behaviour.STOP,
         "IN_JUNCTION": Behaviour.IN_JUNCTION
     }
+    # 定义：以下的推理结果都映射到Behaviour.SEND
+    RESULT_TO_SEND = [
+        "Congestion"
+    ]
+    # 定义：以下的推理结果需要对应的特殊处理方法
+    RESULT_TO_SPECIAL_HANDLING = [
+        "LetStopBeforeJunction"
+    ]
     
     @classmethod
     def get_behaviour(cls, action_name: str) -> Behaviour:
@@ -67,91 +74,27 @@ class action_name_to_behaviour_mapper:
         Returns:
             Behaviour: 对应的Behaviour枚举值，如果未找到则返回Behaviour.OTHER
         """
-        # 先直接查找
+        # 1. 直接查找动作名称是否在映射中
+        # 1.1 如果动作名称直接在映射中，直接返回对应的Behaviour枚举值
         if action_name in cls.ACTION_TO_BEHAVIOUR:
             return cls.ACTION_TO_BEHAVIOUR[action_name]
-        # 忽略大小写查找
+        # 1.2 如果动作名称不在映射中，忽略大小写查找
         for key, value in cls.ACTION_TO_BEHAVIOUR.items():
             if key.lower() == action_name.lower():
                 return value
-        # 如果是Behaviour枚举的字符串形式
+        # 2. 如果是Behaviour枚举的字符串形式，直接返回对应的Behaviour枚举值
         try:
             return Behaviour[action_name.upper()]
         except KeyError:
             pass
+        # 3. 如果是RESULT_TO_SEND中的结果，返回Behaviour.SEND
+        if action_name in cls.RESULT_TO_SEND:
+            return Behaviour.SEND
+        # 4. 如果是RESULT_TO_SPECIAL_HANDLING中的结果，使用特殊处理方法，进行对应处理
+        if action_name in cls.RESULT_TO_SPECIAL_HANDLING:
+            return Behaviour.SPECIAL_HANDLING
         # 如果都没找到，返回OTHER
         return Behaviour.OTHER
-    
-    @classmethod
-    def get_lane_change_behaviour(cls, action_name: str, vehicle: control_Vehicle, road_graph: RoadGraph) -> Behaviour:
-        """
-        根据动作名称和车辆信息获取对应的变道行为
-        对于ChangeLane动作，根据车辆可用车道选择左变道(LCL)或右变道(LCR)
-        Args:
-            action_name (str): 动作名称
-            vehicle (control_Vehicle): 车辆对象
-            road_graph (RoadGraph): 道路图对象
-        Returns:
-            Behaviour: 对应的Behaviour枚举值
-        """
-        # 如果不是ChangeLane动作，使用常规映射
-        if action_name != "ChangeLane":
-            return cls.get_behaviour(action_name)
-        
-        # 对于ChangeLane动作，根据可用车道选择合适的变道行为
-        if vehicle is None or road_graph is None:
-            return Behaviour.LCL  # 默认返回左变道
-        
-        # 获取当前车道
-        current_lane = road_graph.get_lane_by_id(vehicle.lane_id)
-        if current_lane is None:
-            return Behaviour.LCL  # 默认返回左变道
-        
-        # 查找左可用车道
-        lane = current_lane
-        while lane.left_lane() is not None:
-            lane_id = lane.left_lane()
-            if lane_id in vehicle.available_lanes:
-                return Behaviour.LCL
-            lane = road_graph.get_lane_by_id(lane_id)
-        
-        # 查找右可用车道
-        lane = current_lane
-        while lane.right_lane() is not None:
-            lane_id = lane.right_lane()
-            if lane_id in vehicle.available_lanes:
-                return Behaviour.LCR
-            lane = road_graph.get_lane_by_id(lane_id)
-        
-        # 如果找不到可用的变道车道，返回左变道作为默认行为
-        return Behaviour.LCL
-    
-    @classmethod
-    def is_lane_change(cls, behaviour: Behaviour) -> bool:
-        """
-        判断行为是否为变道行为
-        Args:
-            behaviour (Behaviour): 行为枚举值
-        Returns:
-            bool: 如果是变道行为返回True，否则返回False
-        """
-        return behaviour in [Behaviour.LCL, Behaviour.LCR, Behaviour.OVERTAKE]
-    
-    @classmethod
-    def get_opposite_lane_change(cls, behaviour: Behaviour) -> Behaviour:
-        """
-        获取相反的变道行为
-        Args:
-            behaviour (Behaviour): 当前变道行为
-        Returns:
-            Behaviour: 相反的变道行为
-        """
-        if behaviour == Behaviour.LCL:
-            return Behaviour.LCR
-        elif behaviour == Behaviour.LCR:
-            return Behaviour.LCL
-        else:
-            return behaviour
 
 class EgoDecisionMaker(AbstractEgoDecisionMaker):
     def __init__(self, Scenario_Name: str = None):
@@ -335,10 +278,8 @@ class EgoDecisionMaker(AbstractEgoDecisionMaker):
         try:
             # 获取非阻塞弹窗实例
             window = NonBlockingInferenceWindow.get_instance()
-            
             # 显示窗口（如果尚未显示）
             window.show_window(title)
-            
             # 等待窗口初始化完成
             import time
             start_time = time.time()
@@ -365,7 +306,7 @@ class EgoDecisionMaker(AbstractEgoDecisionMaker):
             os.makedirs(inference_display_dir, exist_ok=True)
             
             # 生成展示文件路径
-            display_filename = f'Detailed_Inference_display_{vehicle_id}.txt'
+            display_filename = f'Detailed_Inference_display_{self.Scenario_Name}_{vehicle_id}.txt'
             display_filepath = os.path.join(inference_display_dir, display_filename)
             
             # 准备展示内容
@@ -423,6 +364,7 @@ class EgoDecisionMaker(AbstractEgoDecisionMaker):
         observation: Observation,
         road_graph: RoadGraph,
         prediction: Prediction = None,
+        config: dict = None
     ) -> EgoDecision:
         """
         基于TSRL的自车决策器实现
@@ -447,8 +389,8 @@ class EgoDecisionMaker(AbstractEgoDecisionMaker):
         decision_result = []
         # 获取自车ID
         vehicle_id = str(ego_vehicle.id)
-        # 读取该车辆的消息历史，默认读取最新的10条消息
-        message_history = self._read_message_history(vehicle_id, max_messages=10)
+        # 读取该车辆的消息历史
+        message_history = self._read_message_history(vehicle_id, max_messages=config["NUM_READMESSAGES"])
         if not message_history:
             logging.warning(f"No message history for ego vehicle {vehicle_id}")
             return EgoDecision(ego_veh=ego_vehicle, result=decision_result)
@@ -467,12 +409,10 @@ class EgoDecisionMaker(AbstractEgoDecisionMaker):
             # 检查规则条件是否满足
             if self._check_conditions(conditions, message_history):
                 logging.debug(f"Rule conditions satisfied for ego vehicle {vehicle_id}: {rule}")
-                
                 # 生成推理输入文件
                 input_filepath = self._generate_inference_input(vehicle_id, message_history, rule, head)
                 if not input_filepath:
                     continue
-                
                 # 运行TSRL推理
                 output_filepath = self._run_tsrl_inference(input_filepath, vehicle_id)
                 if not output_filepath:
@@ -495,7 +435,7 @@ class EgoDecisionMaker(AbstractEgoDecisionMaker):
                         logging.info(f"Unknown behaviour for action {action_name}")
                     decision_result.append(decision_at_t)
                     logging.info(f"Decision made for ego vehicle {vehicle_id}: {decision_output}")
-                    # break  # 找到一个适用规则就停止
+                    break  # 找到一个适用规则就停止
             else: 
                 # 消息列表和当前这条推理规则不对应，所以进入下一个循环
                 continue
@@ -517,7 +457,19 @@ class MultiDecisionMaker(AbstractMultiDecisionMaker):
         # 确保目录存在
         os.makedirs(self.inference_input_dir, exist_ok=True)
         os.makedirs(self.inference_output_dir, exist_ok=True)
-
+    
+    def stop_vehicle(self, vehicle: control_Vehicle, complete_decisions: MultiDecision, T: float, config: dict):
+        """为rou文件中有停车需要的车辆生成主动停车决策"""
+        vehicle.current_state.stop_flag = True
+        # 车辆即将到达停车位置，触发停车逻辑
+        stop_decision = SingleStepDecision()
+        stop_decision.action = f"Emergencystation({vehicle.id});"
+        stop_decision.expected_time = T 
+        stop_decision.behaviour = Behaviour.STOP
+        complete_decisions.results[vehicle] = [stop_decision]
+        return vehicle,complete_decisions
+        
+        
     def _read_message_history(self, vehicle_id: str, max_messages: Optional[int] = None) -> List[str]:
         """读取指定车辆的消息历史"""
         message_file = os.path.join(self.message_history_dir, f'message_{vehicle_id}_history.txt')
@@ -709,7 +661,7 @@ class MultiDecisionMaker(AbstractMultiDecisionMaker):
             os.makedirs(inference_display_dir, exist_ok=True)
             
             # 生成展示文件路径
-            display_filename = f'Detailed_Inference_display_{vehicle_id}.txt'
+            display_filename = f'Detailed_Inference_display_{self.Scenario_Name}_{vehicle_id}.txt'
             display_filepath = os.path.join(inference_display_dir, display_filename)
             
             # 准备展示内容
@@ -766,10 +718,8 @@ class MultiDecisionMaker(AbstractMultiDecisionMaker):
         try:
             # 获取非阻塞弹窗实例
             window = NonBlockingInferenceWindow.get_instance()
-            
             # 显示窗口（如果尚未显示）
             window.show_window(title)
-            
             # 等待窗口初始化完成
             import time
             start_time = time.time()
@@ -782,78 +732,13 @@ class MultiDecisionMaker(AbstractMultiDecisionMaker):
         except Exception as e:
             logging.error(f"Error creating inference display window: {e}")
 
-    def _get_current_time(self):
-        """获取当前时间戳"""
-        from datetime import datetime
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    def _generate_detailed_inference_display_file(self, vehicle_id: str, message_history: List[str], rule: str,
-                                                 input_filepath: str, output_filepath: str, decision_result: str):
-        """生成详细的推理展示文件，包含输入、输出和决策结果，并在弹窗中展示"""
-        try:
-            # 创建推理展示目录
-            inference_display_dir = os.path.join(self.project_root, 'TSRL_inference', 'Inference_display')
-            os.makedirs(inference_display_dir, exist_ok=True)
-            
-            # 生成展示文件路径
-            display_filename = f'Detailed_Inference_display_{vehicle_id}.txt'
-            display_filepath = os.path.join(inference_display_dir, display_filename)
-            
-            # 准备展示内容
-            content = f"=== TSRL详细推理展示 ===\n\n"
-            content += f"车辆ID: {vehicle_id}\n"
-            content += f"时间: {self._get_current_time()}\n\n"
-            
-            content += f"=== 匹配的规则 ===\n{rule}\n\n"
-            
-            content += f"=== 消息历史 ===\n"
-            for i, msg in enumerate(message_history, 1):
-                content += f"{i}. {msg}\n"
-            content += "\n"
-            
-            # 读取推理输入文件内容
-            content += f"=== 推理输入文件内容 ({os.path.basename(input_filepath)}) ===\n"
-            if os.path.exists(input_filepath):
-                with open(input_filepath, 'r', encoding='utf-8') as f:
-                    content += f.read()
-            else:
-                content += "输入文件不存在\n"
-            content += "\n"
-            
-            # 读取TSRL推理输出文件内容
-            content += f"=== TSRL推理输出内容 ({os.path.basename(output_filepath)}) ===\n"
-            if os.path.exists(output_filepath):
-                with open(output_filepath, 'r', encoding='utf-8') as f:
-                    content += f.read()
-            else:
-                content += "输出文件不存在\n"
-            content += "\n"
-            
-            # 添加解析后的决策结果
-            content += f"=== 解析后的决策结果 ===\n"
-            if decision_result:
-                content += f"{decision_result}\n"
-            else:
-                content += "无决策结果\n"
-            
-            # 写入展示文件
-            with open(display_filepath, 'w', encoding='utf-8') as f:
-                f.write(content)
-            # 创建弹窗展示内容
-            self._create_inference_display_window("TSRL详细推理展示", content)
-            return display_filepath
-        except Exception as e:
-            logging.error(f"Error generating detailed inference display file: {e}")
-            return None
-
     def make_decision(
         self,
         T: float,
         observation: Observation,
         road_graph: RoadGraph,
         prediction: Prediction = None,
-        config: dict = None,
-        num_readmessages: int = 10,
+        config: dict = None
     ) -> MultiDecision:
         """
         基于TSRL的多车决策器实现
@@ -866,10 +751,8 @@ class MultiDecisionMaker(AbstractMultiDecisionMaker):
         6. 解析输出并生成决策
         """
         complete_decisions = MultiDecision()
-        
-        # 获取所有需要决策的车辆
-        decision_vehicles = [veh for veh in observation.vehicles if veh.vtype != 'OUT_OF_AOI']
-        
+        # 获取所有需要决策的车辆,跳过AOI区域外的车和Ego车
+        decision_vehicles = [veh for veh in observation.vehicles if veh.vtype != 'OUT_OF_AOI' and veh.vtype != "Ego_Car"]
         # 读取规则
         rules = self._read_rules()
         if not rules:
@@ -878,9 +761,14 @@ class MultiDecisionMaker(AbstractMultiDecisionMaker):
         
         # 为每辆车做决策
         for vehicle in decision_vehicles:
+            # 11.4 对stop_lane!=None的Vehicle进行主动停车
+            if vehicle.stop_lane is not None and vehicle.lane_id in vehicle.stop_lane:
+                vehicle,complete_decisions =self.stop_vehicle(vehicle, complete_decisions,T,config)
+                continue # 主动停车决策优先级大于TSRL决策
+            # TSRL决策
             vehicle_id = str(vehicle.id)
             # 读取该车辆的消息历史，默认读取最新的num_readmessages条消息
-            message_history = self._read_message_history(vehicle_id, max_messages=num_readmessages)
+            message_history = self._read_message_history(vehicle_id, max_messages=config["NUM_READMESSAGES"])
             if not message_history:
                 logging.warning(f"No message history for vehicle {vehicle_id}")
                 continue
@@ -898,7 +786,6 @@ class MultiDecisionMaker(AbstractMultiDecisionMaker):
                 # 检查规则条件是否满足
                 if self._check_conditions(conditions, message_history):
                     logging.debug(f"Rule conditions satisfied for vehicle {vehicle_id}: {rule}")
-                    
                     # 生成推理输入文件
                     input_filepath = self._generate_inference_input(vehicle_id, message_history, rule, head)
                     if not input_filepath:
@@ -918,7 +805,7 @@ class MultiDecisionMaker(AbstractMultiDecisionMaker):
                         # 创建决策
                         decision_at_t = SingleStepDecision()
                         decision_at_t.action = decision_result
-                        decision_at_t.expected_time = T + config["DECISION_RESOLUTION"]  # 这里应该从配置中获取
+                        decision_at_t.expected_time = T  
                         # 根据规则头部确定行为类型
                         action_name = self._extract_action_from_head(head)
                         # 使用action_name_to_behaviour_mapper映射action_name到Behaviour
@@ -933,7 +820,7 @@ class MultiDecisionMaker(AbstractMultiDecisionMaker):
                     # 消息列表和推理规则没有对应，所以返回空决策
                     decision_at_t = SingleStepDecision()
                     decision_at_t.action = decision_result
-                    decision_at_t.expected_time = T + config["DECISION_RESOLUTION"]
+                    decision_at_t.expected_time = T 
                     complete_decisions.results[vehicle] = [decision_at_t]
 
         return complete_decisions

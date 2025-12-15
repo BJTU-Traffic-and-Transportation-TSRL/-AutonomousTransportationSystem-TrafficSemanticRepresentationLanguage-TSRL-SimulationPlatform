@@ -14,7 +14,8 @@ import logger
 # 添加RSUCommunicator的导入
 import sys
 import os
-from TSRL_interaction.vehicle_communication import RSUCommunicator, CommunicationManager
+from TSRL_interaction.communicator_category import RSUCommunicator
+from TSRL_interaction.vehicle_communication import CommunicationManager
 from trafficManager.common.vehicle import control_Vehicle
 from TSRL_interaction.vehicle_communication import Message, Performative
 
@@ -201,39 +202,40 @@ class control_RSU:
                     # 如果车辆在检测范围内
                     if distance2detector <= detect_length:
                         # 创建承载交通信息的互操作语言
-                        vehicle_info = f"getVehicleID({vehicle.id});\n"
+                        vehicle_info = f"GetVehicleID({vehicle.id});\n"
                         # 1. 相对位置关系
                         if vehicle.lane_id == sender_lane_id:
                             if vehicle_pos >= sender_pos:
-                                vehicle_info += f"VehicleInLane({sender_id},{vehicle_id},Front);\n"
+                                # if the vehicle is in front of sender
+                                vehicle_info += f"VehicleInLane({vehicle_id},{sender_id},Front);\n"
                             else:
-                                vehicle_info += f"VehicleInLane({sender_id},{vehicle_id},Rear);\n"
+                                vehicle_info += f"VehicleInLane({vehicle_id},{sender_id},Rear);\n"
                         else:
                             # 获取发送者车道和当前车辆车道的对象
                             sender_lane = roadgraph.get_lane_by_id(sender_lane_id)
-                            vehicle_lane = roadgraph.get_lane_by_id(vehicle.lane_id)
-                            
                             # 判断车辆是否在发送者的左车道
                             if (sender_lane and hasattr(sender_lane, 'left_lane') and 
                                 sender_lane.left_lane() == vehicle.lane_id):
                                 if vehicle_pos >= sender_pos:
-                                    vehicle_info += f"VehicleLeftLane({sender_id},{vehicle_id},Front);\n"
+                                    vehicle_info += f"VehicleLeftLane({vehicle_id},{sender_id},Front);\n"
                                 else:
-                                    vehicle_info += f"VehicleLeftLane({sender_id},{vehicle_id},Rear);\n"
+                                    vehicle_info += f"VehicleLeftLane({vehicle_id},{sender_id},Rear);\n"
                             # 判断车辆是否在发送者的右车道
                             elif (sender_lane and hasattr(sender_lane, 'right_lane') and 
                                   sender_lane.right_lane() == vehicle.lane_id):
                                 if vehicle_pos >= sender_pos:
-                                    vehicle_info += f"VehicleRightLane({sender_id},{vehicle_id},Front);\n"
+                                    vehicle_info += f"VehicleRightLane({vehicle_id},{sender_id},Front);\n"
                                 else:
-                                    vehicle_info += f"VehicleRightLane({sender_id},{vehicle_id},Rear);\n"
+                                    vehicle_info += f"VehicleRightLane({vehicle_id},{sender_id},Rear);\n"
                         # 2. 相对速度关系
                         if vehicle.current_state.vel > sender_vel:
+                            # if the speed of vehicle is greater than sender
                             vehicle_info += f"GreaterSpeed({vehicle_id},{sender_id});\n"
                         elif vehicle.current_state.vel < sender_vel:
-                            vehicle_info += f"GreaterSpeed({sender_id},{vehicle_id});\n"
+                            # if the speed of vehicle is slower than sender
+                            vehicle_info += f"SlowerSpeed({vehicle_id},{sender_id});\n"
                         else:
-                            vehicle_info += f"EqualSpeed({sender_id},{vehicle_id});\n"
+                            vehicle_info += f"EqualSpeed({vehicle_id},{sender_id});\n"
                         detected_messages.append(vehicle_info)
         return detected_messages
 

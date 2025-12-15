@@ -1,0 +1,15 @@
+HasShip3Position(X1,Y1); 
+HasShip3Speed(10); 
+HasShip3Direction(30); 
+HasShip3Status(Approaching); 
+HasShip2Position(X2,Y2); 
+HasShip2Speed(8); 
+HasShip2Direction(95); 
+HasShip2Status(Approaching); 
+RelativeSpeed(Ship3,Ship2):-HasShip3Speed(10),HasShip2Speed(8); 
+RealtivePosition(Ship3,Ship2):-HasShip3Position(X1,Y1),HasShip2Position(X2,Y2);
+RelativeDirection(Ship3,Ship2):-HasShip3Direction(30),HasShip2Direction(95);
+Priority(Ship3):-RealtivePosition(Ship3,Ship2),RelativeSpeed(Ship3,Ship2),RelativeDirection(Ship3,Ship2),HasShip3Status(Approaching),HasShip2Status(Approaching); 
+NonPriority(Ship2):-Priority(x);
+ASK Priority(x);
+ASK NonPriority(y);

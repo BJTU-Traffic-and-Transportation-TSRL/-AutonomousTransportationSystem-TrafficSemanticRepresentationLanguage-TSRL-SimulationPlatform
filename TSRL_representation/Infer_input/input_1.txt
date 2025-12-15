@@ -1,0 +1,16 @@
+SelfVehicle(0);
+IsJunction(7);
+EmergencyStation(3);
+HasNextJunction(0,7);
+LetStop(1);
+LetStop(2);
+EmergencyStation(2);
+EmergencyStation(2);
+StopAt(2,9);
+EmergencyStation(1);
+StopAt(2,7);
+Congestion(7);
+
+LetStopBeforeJunction(x):-HasNextJunction(x,y),Congestion(y);//y拥堵，x车前方是交叉口y
+
+ASK LetStopBeforeJunction(x);

@@ -1,15 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2025-10-22 15:46:18 by Eclipse SUMO netedit Version 1.24.0
+<!-- generated on 2025-10-27 21:10:19 by Eclipse SUMO netedit Version 1.24.0
 -->
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
     <!-- Vehicles, persons and containers (sorted by depart) -->
-    <trip id="0" depart="0.00" from="E0" to="E1"/>
-    <trip id="1" depart="0.00" departLane="1" departPos="65.15" from="E0" to="E1">
-        <stop lane="E0_1" startPos="62.06" endPos="72.06" duration="40.00"/>
-    </trip>
-    <trip id="2" depart="0.00" departPos="65.36" from="E0" to="E1">
-        <stop lane="E0_0" startPos="62.36" endPos="72.36" duration="40.00"/>
-    </trip>
+    <vehicle id="1" depart="0.00" departLane="0" departPos="0.00">
+        <route edges="8 9"/>
+        <stop lane="9_0" endPos="3.16" until="80.00"/>
+    </vehicle>
+    <vehicle id="2" depart="2.00" departLane="1" departPos="0.00">
+        <route edges="8 9"/>
+        <stop lane="9_1" endPos="5.37" until="80.00"/>
+    </vehicle>
+    <vehicle id="3" depart="4.00" departLane="0" departPos="0.00">
+        <route edges="8 9"/>
+    </vehicle>
+    <vehicle id="4" depart="6.00" departLane="1" departPos="0.00">
+        <route edges="8 9"/>
+    </vehicle>  
+    <vehicle id="5" depart="8.00" departLane="0" departPos="0.00">
+        <route edges="8 9"/>
+    </vehicle>
+    <vehicle id="6" depart="10.00" departLane="1" departPos="0.00">
+        <route edges="8 9"/>
+    </vehicle>
+    <vehicle id="11" depart="12.00" departLane="0" departPos="0.00">
+        <route edges="8 9"/>
+    </vehicle>
+    <vehicle id="12" depart="14.00" departLane="1" departPos="0.00">
+        <route edges="8 9"/>
+    </vehicle>
+    <vehicle id="13" depart="16.00" departLane="0" departPos="0.00">
+        <route edges="8 9"/>
+    </vehicle>
+    <vehicle id="14" depart="18.00" departLane="1" departPos="0.00">
+        <route edges="8 9"/>
+    </vehicle>
+    <vehicle id="0" depart="20.00" departLane="0" departPos="0.00">
+        <route edges="8 9"/>
+    </vehicle>
 </routes>

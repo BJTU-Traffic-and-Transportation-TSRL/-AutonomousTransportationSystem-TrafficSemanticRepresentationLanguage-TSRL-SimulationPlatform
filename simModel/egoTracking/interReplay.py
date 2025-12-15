@@ -201,7 +201,8 @@ class InterReplayModel:
             try:
                 cur.execute(sql, data)
             except Exception as e:
-                print(sql, data)
+                # 注释掉下面这行以避免在终端上打印SQL语句
+                # print(sql, data)
                 raise e
             cnt += 1
 
@@ -305,7 +306,9 @@ class InterReplayModel:
     def initVeh(self, vid: str, currFrame: int) -> Vehicle | egoCar:
         dbTrajectory = self.dbTrajectory(vid, currFrame)
         if vid == self.egoID:
-            veh = egoCar(vid)
+            # 从配置中获取DEAREA值，如果不存在则使用默认值50.0
+            dearea = self.config.get("DEAREA", 50.0) if hasattr(self, 'config') and self.config else 50.0
+            veh = egoCar(vid, deArea=dearea)
         else:
             veh = Vehicle(vid)
         veh.dbTrajectory = dbTrajectory

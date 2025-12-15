@@ -1,0 +1,16 @@
+SelfVehicle(AV);
+StopAt(bg.13,main);
+StopAt(AV,main);
+StopAt(bg.14,main);
+StopAt(bg.15,main);
+InformationRequest2RSU(AV,RSU_1);
+getVehicleID(bg.13);
+VehicleInLane(bg.13,AV,Front);
+GreaterSpeed(bg.13,AV);
+getVehicleID(bg.12);
+VehicleLeftLane(bg.12,AV,Front);
+SlowerSpeed(bg.12,AV);
+
+KeepLane(x):-VehicleInLane(y,x,Front),SlowerSpeed(x,y);//y在x的前面，且x的速度比y更慢
+
+ASK KeepLane(x);

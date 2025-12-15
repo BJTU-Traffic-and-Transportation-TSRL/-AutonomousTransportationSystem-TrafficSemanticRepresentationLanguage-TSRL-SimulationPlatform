@@ -1,0 +1,18 @@
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+StopAt(19,main);
+EmergencyStation(20);
+VehicleInLane(19,20,Front);
+LeftChangeLane(0);
+StopAt(22,main);
+EmergencyStation(0);
+VehicleInLane(19,0,Front);
+CheckChangeLane(0);
+RightChangeLaneSafe(0);
+RightChangeLane(0);
+
+RightChangeLane(x):-CheckChangeLane(x),RightChangeLaneSafe(x);//x的右车道可以变道
+
+ASK RightChangeLane(x)

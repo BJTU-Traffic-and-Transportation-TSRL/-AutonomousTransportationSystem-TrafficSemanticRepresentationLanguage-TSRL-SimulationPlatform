@@ -1,0 +1,7 @@
+CheckChangeLane(0);
+LeftChangeLaneSafe(0);
+RightChangeLaneSafe(0);
+
+RightChangeLane(x):-CheckChangeLane(x),RightChangeLaneSafe(x);//x的右车道可以变道
+
+ASK RightChangeLane(x)

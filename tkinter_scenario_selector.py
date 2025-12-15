@@ -5,19 +5,214 @@ import sys
 import os
 import re
 import webbrowser
+import threading
+import time
+import json
+import logger
+
+# 设置日志
+log = logger.get_logger(__name__)
 
 # 获取项目根目录
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+# 导入地址配置文件
+from utils.load_config import load_config
+loc_config = load_config("E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\loc_config.yaml")
+
+class ManualInstructionDialog:
+    def __init__(self, parent, scenario_name, simulation_process):
+        self.parent = parent
+        self.scenario_name = scenario_name
+        self.simulation_process = simulation_process
+        self.instruction = ""
+        self.mode = "view"  # 初始为查看模式，支持 'view' 和 'input' 两种模式
+        
+        # 创建弹窗
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title(f"人工指令输入 - {scenario_name}")
+        self.dialog.geometry("500x300")
+        self.dialog.resizable(False, False)
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        # 设置窗口置顶
+        self.dialog.attributes('-topmost', True)
+        # 设置弹窗样式
+        self.dialog.configure(bg='#f0f0f0')
+        # 创建UI组件
+        self.create_widgets()
+        # 绑定窗口关闭事件
+        self.dialog.protocol("WM_DELETE_WINDOW", self.on_close)
+    
+    def create_widgets(self):
+        # 清除所有现有组件
+        for widget in self.dialog.winfo_children():
+            widget.destroy()
+        
+        # 标题标签
+        title_label = tk.Label(
+            self.dialog,
+            text="人工指令输入",
+            font=('Arial', 14, 'bold'),
+            fg='#0066cc',
+            bg='#f0f0f0'
+        )
+        title_label.pack(pady=20)
+        
+        if self.mode == "view":
+            # 查看模式：使用较小的窗口尺寸
+            self.dialog.geometry("500x300")
+            info_label = tk.Label(
+                self.dialog,
+                text="仿真正在运行中，点击下方按钮进入人工交互模式：",
+                font=('Arial', 10),
+                bg='#f0f0f0'
+            )
+            info_label.pack(pady=20)
+            
+            button_frame = tk.Frame(self.dialog, bg='#f0f0f0')
+            button_frame.pack(pady=30)
+            
+            # 进行人工交互按钮
+            interaction_btn = tk.Button(
+                button_frame,
+                text="进行人工交互",
+                font=('Arial', 12),
+                width=15,
+                command=self.switch_to_input_mode
+            )
+            interaction_btn.pack()
+        elif self.mode == "input":
+            # 输入模式：增加窗口高度以容纳所有控件
+            self.dialog.geometry("500x400")
+            info_label = tk.Label(
+                self.dialog,
+                text="请输入人工指令，仿真已暂停：",
+                font=('Arial', 10),
+                bg='#f0f0f0'
+            )
+            info_label.pack(pady=10)
+            # 文本输入框
+            self.text_frame = tk.Frame(self.dialog, bg='#f0f0f0')
+            self.text_frame.pack(pady=10, padx=20, fill='both', expand=True)
+            self.instruction_text = tk.Text(
+                self.text_frame,
+                font=('Arial', 12),
+                wrap='word',
+                width=50,
+                height=8
+            )
+            self.instruction_text.pack(side='left', fill='both', expand=True)
+            # 滚动条
+            scrollbar = tk.Scrollbar(self.text_frame, command=self.instruction_text.yview)
+            scrollbar.pack(side='right', fill='y')
+            self.instruction_text.configure(yscrollcommand=scrollbar.set)
+            # 绑定键盘事件
+            self.instruction_text.bind('<Key>', self.on_key_press)
+            # 按钮框架
+            button_frame = tk.Frame(self.dialog, bg='#f0f0f0')
+            button_frame.pack(pady=20)
+            # 确认完成输入按钮
+            confirm_btn = tk.Button(
+                button_frame,
+                text="确认完成输入",
+                font=('Arial', 12),
+                width=15,
+                command=self.on_confirm
+            )
+            confirm_btn.pack(side='left', padx=10)
+            
+            # 取消输入，返回按钮
+            cancel_btn = tk.Button(
+                button_frame,
+                text="取消输入，返回",
+                font=('Arial', 12),
+                width=15,
+                command=self.on_cancel
+            )
+            cancel_btn.pack(side='right', padx=10)
+    
+    def on_key_press(self, input_content):
+        # 处理完整的键盘输入，来自点击"确认完成输入"按钮后的文本输入
+        if isinstance(input_content, str):
+            # 输入内容是字符串，直接使用
+            key_input = input_content.strip()
+        else:
+            # 输入内容是事件对象，不处理（保持向后兼容）
+            return
+        # 如果输入有效，保存到文件供仿真进程读取
+        if key_input:
+            # 使用与其他信号文件相同的命名模式
+            key_input_file = os.path.join(PROJECT_ROOT, "trafficManager", "planner", "input_signal", f"input_{self.scenario_name}.signal")
+            with open(key_input_file, 'w') as f:
+                f.write(key_input)
+            log.info(f"Sent keyboard text input {key_input} to {key_input_file}")
+    
+    def switch_to_input_mode(self):
+        # 切换到输入模式
+        self.mode = "input"
+        self.create_widgets()
+        # 暂停仿真
+        self.pause_simulation()
+    
+    def switch_to_view_mode(self):
+        # 切换到查看模式
+        self.mode = "view"
+        self.create_widgets()
+        # 恢复仿真
+        self.resume_simulation()
+    
+    def on_confirm(self):
+        # 获取输入内容
+        self.instruction = self.instruction_text.get('1.0', 'end-1c').strip()
+        # 将文本输入作为键盘输入处理
+        if self.instruction:
+            # 调用on_key_press方法处理完整的文本输入
+            self.on_key_press(self.instruction)
+        # 切换回查看模式
+        self.switch_to_view_mode()
+    
+    def on_cancel(self):
+        # 切换回查看模式
+        self.switch_to_view_mode()
+    
+    def on_close(self):
+        # 窗口关闭时恢复仿真
+        self.resume_simulation()
+        self.dialog.destroy()
+    
+    def save_instruction(self):
+        # 保存指令到文件
+        instruction_file = os.path.join(PROJECT_ROOT, f"instruction_{self.scenario_name}.txt")
+        with open(instruction_file, 'w', encoding='utf-8') as f:
+            f.write(self.instruction)
+        log.info(f"Saved manual instruction to {instruction_file}")
+    
+    def pause_simulation(self):
+        # 向仿真进程发送暂停信号
+        pause_file = os.path.join(PROJECT_ROOT, "trafficManager", "planner", "pause_resume_signal", f"pause_{self.scenario_name}.signal")
+        with open(pause_file, 'w') as f:
+            f.write("pause")
+        log.info(f"Sent pause signal to {pause_file}")
+    
+    def resume_simulation(self):
+        # 向仿真进程发送恢复信号
+        resume_file = os.path.join(PROJECT_ROOT, "trafficManager", "planner", "pause_resume_signal", f"resume_{self.scenario_name}.signal")
+        with open(resume_file, 'w') as f:
+            f.write("resume")
+        log.info(f"Sent resume signal to {resume_file}")
 
 class ScenarioSelector:
     def __init__(self, root):
         self.root = root
-        self.root.title("自主式交通系统语义交互仿真平台")
+        self.root.title("交通语义交互场景选择器")
         self.root.geometry("600x500")
         self.root.resizable(False, False)
-        
         # 设置样式
         self.setup_styles()
+        # 是否使用SUMO GUI的标志
+        self.use_sumo_gui = tk.BooleanVar(value=False)
+        # 保存正在运行的仿真进程
+        self.running_processes = {}
         
         # 创建初始界面
         self.create_initial_widgets()
@@ -38,7 +233,7 @@ class ScenarioSelector:
         
         title_label = tk.Label(
             title_frame, 
-            text="自主式交通系统语义交互仿真平台", 
+            text="道路交通语义交互场景", 
             font=('Arial', 16, 'bold'),
             fg='#0066cc',
             bg='#f0f0f0'
@@ -94,6 +289,15 @@ class ScenarioSelector:
         )
         custom_btn.pack(pady=10)
         
+        # 查看场景列表按钮
+        list_btn = tk.Button(
+            button_frame,
+            text="查看场景列表",
+            command=self.show_scenario_list,
+            **button_style
+        )
+        list_btn.pack(pady=10)
+        
         # 说明区域
         help_frame = tk.Frame(self.root, bg='#f0f0f0')
         help_frame.pack(pady=20, padx=20, fill='x')
@@ -109,7 +313,7 @@ class ScenarioSelector:
         
         help_text = tk.Label(
             help_frame,
-            text="• 典型交通场景: 包含预设的常见交通场景\n• 自定义交通场景: 用户自定义的交通场景",
+            text="• 典型交通场景: 包含预设的常见交通场景\n• 自定义交通场景: 用户自定义的交通场景\n• 查看场景列表: 显示所有可用场景的详细信息",
             font=('Arial', 8),
             fg='#888888',
             bg='#f0f0f0',
@@ -129,7 +333,7 @@ class ScenarioSelector:
         
         title_label = tk.Label(
             title_frame, 
-            text="典型交通场景", 
+            text="道路交通语义交互场景", 
             font=('Arial', 16, 'bold'),
             fg='#0066cc',
             bg='#f0f0f0'
@@ -214,6 +418,19 @@ class ScenarioSelector:
         )
         btn4.pack(pady=5)
         
+        # SUMO GUI选项
+        options_frame = tk.Frame(self.root, bg='#f0f0f0')
+        options_frame.pack(pady=10, padx=20, fill='x')
+        
+        gui_check = tk.Checkbutton(
+            options_frame,
+            text="使用SUMO GUI界面",
+            variable=self.use_sumo_gui,
+            font=('Arial', 9),
+            bg='#f0f0f0'
+        )
+        gui_check.pack(anchor='w')
+        
         # 说明区域
         help_frame = tk.Frame(self.root, bg='#f0f0f0')
         help_frame.pack(pady=20, padx=20, fill='x')
@@ -228,36 +445,92 @@ class ScenarioSelector:
         )
         help_text.pack(anchor='w', pady=(5, 0))
         
-    def run_scenario(self, script_name):
+    def run_scenario(self, scenario_key, use_gui=False):
         """运行指定场景"""
         try:
-            script_path = os.path.join(PROJECT_ROOT, script_name)
-            if os.path.exists(script_path):
-                # 使用subprocess.Popen启动新进程
-                subprocess.Popen([sys.executable, script_path], 
-                                creationflags=subprocess.CREATE_NEW_CONSOLE)
-                messagebox.showinfo("提示", f"已启动场景: {script_name}\n请查看新打开的窗口。")
-            else:
-                messagebox.showerror("错误", f"场景文件不存在: {script_path}")
+            # 构建命令行参数
+            cmd = [sys.executable, loc_config["LOC_CLASSIC_SCENARIOS"], "-s", scenario_key]
+            if use_gui:
+                cmd.append("--sumo-gui")
+            # 使用subprocess.Popen启动新进程
+            process = subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE)
+            # 触发人工指令输入弹窗
+            self.show_manual_instruction_dialog(scenario_key, process)
+            # 保存进程到字典
+            self.running_processes[scenario_key] = process
+            # 显示提示信息
+            messagebox.showinfo("提示", f"已启动场景: {scenario_key}\n仿真将在您输入人工指令后开始运行。")
+            
         except Exception as e:
             messagebox.showerror("错误", f"运行场景时出错: {str(e)}")
+    
+    def show_manual_instruction_dialog(self, scenario_key, process):
+        """显示人工指令输入弹窗"""
+        # 创建并显示人工指令输入弹窗，不阻塞主进程
+        dialog = ManualInstructionDialog(self.root, scenario_key, process)
+        # 不等待弹窗关闭，让仿真继续运行
+        # 弹窗将持续显示，直到用户关闭它
+        print(f"Created manual instruction dialog for {scenario_key}")
             
     def run_forward_collision_warning(self):
         """运行前向碰撞预警场景"""
-        self.run_scenario("Forward_Collision_Warning.py")
+        self.run_scenario("Forward_Collision_Warning", self.use_sumo_gui.get())
         
     def run_vehicle_rsu_interaction(self):
         """运行车辆-RSU交互场景"""
-        self.run_scenario("Vehicle_RSU_Interacting.py")
+        self.run_scenario("Vehicle_RSU_Interacting", self.use_sumo_gui.get())
         
     def run_human_vehicle_interaction(self):
         """运行人车加速交互场景"""
-        self.run_scenario("Human_Vehicle_Interacting.py")
+        self.run_scenario("Human_Vehicle_Interacting", self.use_sumo_gui.get())
         
     def run_vehicle_vehicle_interaction(self):
         """运行车辆交互场景"""
-        self.run_scenario("Vehicle_Vehicle_Interacting.py")
+        self.run_scenario("Vehicle_Vehicle_Interacting", self.use_sumo_gui.get())
         
+    def show_scenario_list(self):
+        """显示场景列表"""
+        try:
+            # 运行Classic_Scenarios_Selection.py的列表功能
+            result = subprocess.run(
+                [sys.executable, loc_config["LOC_CLASSIC_SCENARIOS"], "-l"],
+                capture_output=True,
+                text=True,
+                cwd=PROJECT_ROOT
+            )
+            
+            # 创建新窗口显示场景列表
+            list_window = tk.Toplevel(self.root)
+            list_window.title("可用场景列表")
+            list_window.geometry("600x400")
+            list_window.resizable(True, True)
+            
+            # 创建文本框和滚动条
+            text_frame = tk.Frame(list_window)
+            text_frame.pack(fill='both', expand=True, padx=10, pady=10)
+            
+            text_widget = tk.Text(text_frame, wrap='word', font=('Courier', 9))
+            scrollbar = tk.Scrollbar(text_frame, command=text_widget.yview)
+            text_widget.configure(yscrollcommand=scrollbar.set)
+            
+            text_widget.pack(side='left', fill='both', expand=True)
+            scrollbar.pack(side='right', fill='y')
+            
+            # 插入场景列表信息
+            if result.returncode == 0:
+                text_widget.insert('1.0', result.stdout)
+            else:
+                text_widget.insert('1.0', f"获取场景列表失败:\n{result.stderr}")
+            
+            text_widget.configure(state='disabled')
+            
+            # 关闭按钮
+            close_btn = tk.Button(list_window, text="关闭", command=list_window.destroy)
+            close_btn.pack(pady=5)
+            
+        except Exception as e:
+            messagebox.showerror("错误", f"显示场景列表时出错: {str(e)}")
+    
     def run_custom_scenario(self):
         """运行自定义场景"""
         # 创建新窗口
@@ -426,7 +699,7 @@ class ScenarioSelector:
     
     def _launch_netedit_internal(self, net_file_path=None):
         """实际启动Netedit程序的内部方法"""
-        netedit_path = os.path.join(PROJECT_ROOT, "sumo-1.15.0", "bin", "netedit.exe")
+        netedit_path = loc_config["LOC_SUMO_NETEDIT"]
         try:
             if os.path.exists(netedit_path):
                 if net_file_path and os.path.exists(net_file_path):
@@ -552,7 +825,7 @@ class ScenarioSelector:
                     return
                 
                 # 构建netconvert命令
-                netconvert_path = os.path.join(PROJECT_ROOT, "sumo-1.15.0", "bin", "netconvert.exe")
+                netconvert_path = loc_config["LOC_SUMO_NETCONVERT"]
                 output_file = os.path.join(network_files_path, f"{network_name}.net.xml")
                 
                 cmd = [
@@ -625,7 +898,7 @@ class ScenarioSelector:
         generate_btn.grid(row=2, column=2, padx=20, pady=5, sticky='e')
         
         # 打开网页说明文件
-        html_path = os.path.join(PROJECT_ROOT, "manual_network_creation.html")
+        html_path = loc_config["LOC_MANUAL_NETWORK_CREATION"]
         if os.path.exists(html_path):
             webbrowser.open(f"file://{html_path}")
         else:

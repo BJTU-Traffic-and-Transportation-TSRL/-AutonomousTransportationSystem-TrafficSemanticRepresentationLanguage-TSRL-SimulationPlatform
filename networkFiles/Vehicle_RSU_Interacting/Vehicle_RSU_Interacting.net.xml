@@ -1,16 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2025-09-05 12:05:59 by Eclipse SUMO netconvert Version 1.15.0
+<!-- generated on 2025-11-12 22:47:51 by Eclipse SUMO netedit Version 1.15.0
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
 
     <input>
-        <node-files value="nodes.xml"/>
-        <edge-files value="edges.xml"/>
+        <sumo-net-file value="E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.11-under version\ATSISP\networkFiles\Vehicle_RSU_Interacting\Vehicle_RSU_Interacting.net.xml"/>
     </input>
 
     <output>
-        <output-file value="Vehicle_RSU_Interacting.net.xml"/>
+        <output-file value="E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.11-under version\ATSISP\networkFiles\Vehicle_RSU_Interacting\Vehicle_RSU_Interacting.net.xml"/>
     </output>
+
+    <processing>
+        <geometry.min-radius.fix.railways value="false"/>
+        <geometry.max-grade.fix value="false"/>
+        <offset.disable-normalization value="true"/>
+        <lefthand value="0"/>
+    </processing>
+
+    <junctions>
+        <no-internal-links value="true"/>
+        <no-turnarounds value="true"/>
+        <junctions.corner-detail value="5"/>
+        <junctions.limit-turn-speed value="5.50"/>
+        <rectangular-lane-cut value="0"/>
+    </junctions>
+
+    <pedestrian>
+        <walkingareas value="0"/>
+    </pedestrian>
 
 </configuration>
 -->
@@ -19,13 +37,13 @@
 
     <location netOffset="0.00,0.00" convBoundary="0.00,0.00,800.00,0.00" origBoundary="0.00,0.00,800.00,0.00" projParameter="!"/>
 
-    <edge id="main" from="Start" to="End" priority="-1">
+    <edge id="main" from="start" to="end" priority="-1">
         <lane id="main_0" index="0" speed="27.78" length="800.00" shape="0.00,-8.00 800.00,-8.00"/>
         <lane id="main_1" index="1" speed="27.78" length="800.00" shape="0.00,-4.80 800.00,-4.80"/>
         <lane id="main_2" index="2" speed="27.78" length="800.00" shape="0.00,-1.60 800.00,-1.60"/>
     </edge>
 
-    <junction id="End" type="dead_end" x="800.00" y="0.00" incLanes="main_0 main_1 main_2" intLanes="" shape="800.00,-9.60 800.00,0.00"/>
-    <junction id="Start" type="dead_end" x="0.00" y="0.00" incLanes="" intLanes="" shape="0.00,0.00 0.00,-9.60"/>
+    <junction id="end" type="dead_end" x="800.00" y="0.00" incLanes="main_0 main_1 main_2" intLanes="" shape="800.00,-9.60 800.00,0.00"/>
+    <junction id="start" type="dead_end" x="0.00" y="0.00" incLanes="" intLanes="" shape="0.00,0.00 0.00,-9.60"/>
 
 </net>

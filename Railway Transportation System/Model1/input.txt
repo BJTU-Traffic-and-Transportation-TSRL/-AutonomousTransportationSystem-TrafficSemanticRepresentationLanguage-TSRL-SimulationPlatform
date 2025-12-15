@@ -1,0 +1,6 @@
+StationAhead(x);
+LetGoStopTrack(x):-VehicleType(x); 
+Control(TransferVehicleTo):-ClassificationError(x); 
+Control(LetDecelerate):-StationAhead(x);
+Control(SwitchTrack):-HasObstacleLocation(y);HasOtherVehicleLocation(z);
+ASK Control(x);

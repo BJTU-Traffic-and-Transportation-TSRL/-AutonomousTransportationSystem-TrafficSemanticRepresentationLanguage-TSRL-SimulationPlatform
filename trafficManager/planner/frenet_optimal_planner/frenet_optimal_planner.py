@@ -68,16 +68,39 @@ def calc_stop_path(current_state, decel, T, dt, config):
     d = current_state.d
     s_d = current_state.s_d
     d_d = current_state.d_d
+    
+    # 检查是否已经停止或速度分量是否为零，避免除零错误
+    velocity_magnitude = np.sqrt(s_d**2 + d_d**2)
+    if velocity_magnitude < 1e-6:  # 如果速度几乎为零
+        # 车辆已经完全停止，直接生成停止状态序列
+        final_s_d = 0.0
+        final_d_d = 0.0
+        while len(stop_path.states) < int(T / dt):
+            stop_path.states.append(State(t=t, s=s, d=d, s_d=final_s_d, d_d=final_d_d, stop_flag=True))
+            t += dt
+        return stop_path
+    
     while True:
         #Decomposition decel along s_d and d_d（三角形相似原理）
-        s_dd = decel * s_d / np.sqrt(s_d**2 + d_d**2)
-        d_dd = decel * d_d / np.sqrt(s_d**2 + d_d**2)
+        # 添加除零保护
+        velocity_magnitude = np.sqrt(s_d**2 + d_d**2)
+        if velocity_magnitude < 1e-6:
+            # 速度几乎为零，直接设置加速度为零
+            s_dd = 0.0
+            d_dd = 0.0
+        else:
+            s_dd = decel * s_d / velocity_magnitude
+            d_dd = decel * d_d / velocity_magnitude
+            
         stop_path.states.append(
             State(t=t, s=s, d=d, s_d=s_d, d_d=d_d, s_dd=s_dd))
         if s_d <= 1e-1: # 如果横向速度足够小
-            while len(stop_path.states) < T / dt:
+            # 强制设置最终速度为0，确保车辆完全停止
+            final_s_d = 0.0
+            final_d_d = 0.0
+            while len(stop_path.states) < int(T / dt):
                 t += dt
-                stop_path.states.append(State(t=t, s=s, d=d, s_d=s_d, d_d=d_d))
+                stop_path.states.append(State(t=t, s=s, d=d, s_d=final_s_d, d_d=final_d_d, stop_flag=True))
             break
         # 更新状态数据
         t += dt
@@ -89,8 +112,12 @@ def calc_stop_path(current_state, decel, T, dt, config):
             d_d = 1e-3
         if s_d < 0: # 如果横向速度<0
             sqrt_sd = np.sqrt(s_d**2 + d_d**2)
-            s_d= 1e-3 * s_d / sqrt_sd
-            d_d= 1e-3 * d_d / sqrt_sd
+            if sqrt_sd < 1e-6:
+                s_d = 1e-3
+                d_d = 0.0
+            else:
+                s_d= 1e-3 * s_d / sqrt_sd
+                d_d= 1e-3 * d_d / sqrt_sd
     return stop_path
 
 
@@ -131,6 +158,11 @@ def calc_frenet_paths(current_state, sample_d, sample_t, sample_v, dt, config):
 
 
 def calc_global_paths(fplist, csp):
+    # 检查course_spline是否为空
+    if csp is None:
+        logging.warning("course_spline is None in calc_global_paths")
+        return fplist
+        
     for fp in fplist:
         fp.frenet_to_cartesian(csp)
 
@@ -153,6 +185,14 @@ def check_collision(fp, ob, config):
 
 
 def cal_cost(fplist, ob, course_spline, config):
+    # 检查course_spline是否为空
+    if course_spline is None:
+        logging.warning("course_spline is None in cal_cost")
+        # 为所有轨迹设置一个默认的高成本，使它们不会被选择
+        for path in fplist:
+            path.cost = float('inf')
+        return fplist
+        
     for path in fplist:
         path.cost = 0
         ref_vel_list = [20.0 / 3.6] * len(path.states)
@@ -187,6 +227,11 @@ def check_path(path, ob, config):
 
 
 def frenet_optimal_planning(csp, current_state, ob, config):
+    # 检查course_spline是否为空
+    if csp is None:
+        logging.warning("course_spline is None in frenet_optimal_planning")
+        return None
+        
     target_speed = 30.0 / 3.6  # target speed [m/s]
     sample_d = np.arange(-config["MAX_ROAD_WIDTH"], config["MAX_ROAD_WIDTH"],
                          config["D_ROAD_W"])

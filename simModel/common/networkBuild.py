@@ -103,7 +103,9 @@ class NetworkBuild:
             try:
                 cur.execute(sql, data)
             except sqlite3.OperationalError as e:
-                print(sql, data)
+                # 注释掉下面这行以避免在终端上打印SQL语句
+                # print(sql, data)
+                pass
             commitCnt += 1
             if commitCnt == 10000:
                 conn.commit()
@@ -176,12 +178,18 @@ class NetworkBuild:
                             shapeUnzip[i]
                         ) for i in range(2)
                     ]
-                    lane.course_spline = Spline2D(shapeUnzip[0], shapeUnzip[1])
-                    lane.getPlotElem()
+                    # 添加course_spline初始化失败的处理逻辑
+                    try:
+                        lane.course_spline = Spline2D(shapeUnzip[0], shapeUnzip[1])
+                        lane.getPlotElem()
+                    except Exception as e:
+                        logging.warning(f"Failed to initialize course_spline for lane {lid}: {e}")
+                        lane.course_spline = None
                     self.lanes[lid] = lane
                     edge.lanes.add(lane.id)
-                    laneAffGridIDs = self.affGridIDs(lane.center_line)
-                    edge.affGridIDs = edge.affGridIDs | laneAffGridIDs
+                    if lane.center_line is not None:
+                        laneAffGridIDs = self.affGridIDs(lane.center_line)
+                        edge.affGridIDs = edge.affGridIDs | laneAffGridIDs
                     laneNumber += 1
             edge.lane_num = laneNumber
             for gridID in edge.affGridIDs:
@@ -245,12 +253,17 @@ class NetworkBuild:
                     center_line.append(
                         toLane.course_spline.calc_position(si)
                     )
-                junctionLane.course_spline = Spline2D(
-                    list(zip(*center_line))[0], list(zip(*center_line))[1]
-                )
-                junctionLane.getPlotElem()
-                junctionLane.last_lane_id = fromLaneID
-                junctionLane.next_lane_id = toLaneID
+                # 添加junctionLane的course_spline初始化失败的处理逻辑
+                    try:
+                        junctionLane.course_spline = Spline2D(
+                            list(zip(*center_line))[0], list(zip(*center_line))[1]
+                        )
+                        junctionLane.getPlotElem()
+                    except Exception as e:
+                        logging.warning(f"Failed to initialize course_spline for junction lane {junctionLaneID}: {e}")
+                        junctionLane.course_spline = None
+                    junctionLane.last_lane_id = fromLaneID
+                    junctionLane.next_lane_id = toLaneID
                 fromLane.next_lanes[toLaneID] = (junctionLaneID, direction)
                 fromEdge.next_edge_info[toEdgeID].add(fromLaneID)
                 # add this junctionLane to it's parent Junction's JunctionLanes
@@ -768,8 +781,13 @@ class Rebuild(NetworkBuild):
                         shapeUnzip[i]
                     ) for i in range(2)
                 ]
-                lane.course_spline = Spline2D(shapeUnzip[0], shapeUnzip[1])
-                lane.getPlotElem()
+                # 添加course_spline初始化失败的处理逻辑
+                try:
+                    lane.course_spline = Spline2D(shapeUnzip[0], shapeUnzip[1])
+                    lane.getPlotElem()
+                except Exception as e:
+                    logging.warning(f"Failed to initialize course_spline for lane {lid}: {e}")
+                    lane.course_spline = None
                 self.lanes[lid] = lane
                 self.getEdge(eid).lanes.add(lid)
 
@@ -825,10 +843,15 @@ class Rebuild(NetworkBuild):
                             self.getLane(
                                 toLaneID).course_spline.calc_position(si)
                         )
-                    junctionLane.course_spline = Spline2D(
-                        list(zip(*center_line))[0], list(zip(*center_line))[1]
-                    )
-                    junctionLane.getPlotElem()
+                    # 添加junctionLane的course_spline初始化失败的处理逻辑
+                    try:
+                        junctionLane.course_spline = Spline2D(
+                            list(zip(*center_line))[0], list(zip(*center_line))[1]
+                        )
+                        junctionLane.getPlotElem()
+                    except Exception as e:
+                        logging.warning(f"Failed to initialize course_spline for junction lane {junctionLaneID}: {e}")
+                        junctionLane.course_spline = None
                     junctionLane.last_lane_id = fromLaneID
                     junctionLane.next_lane_id = toLaneID
                     fromLane.next_lanes[toLaneID] = (

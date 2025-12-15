@@ -50,10 +50,10 @@ class TokenType(Enum):  #实际上相当于字典
     EOF = 'EOF'
 
     #声明
-    # PREDICATE = 'PREDICATE'#谓词
-    # VAR = 'VAR' #变量
-    # FUN = 'FUN' #函数
-    # RULE = "RULE" #规则
+    PREDICATE = 'PREDICATE'#谓词
+    VAR = 'VAR' #变量
+    FUN = 'FUN' #函数
+    RULE = "RULE" #规则
 
 
 

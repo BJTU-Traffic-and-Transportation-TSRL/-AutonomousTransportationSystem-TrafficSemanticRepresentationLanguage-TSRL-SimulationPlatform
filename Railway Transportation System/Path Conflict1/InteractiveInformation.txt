@@ -1,0 +1,15 @@
+Send by FreightTrain1&FreightTrain2&PassengerTrain:OnTrack(FreightTrain1, TrackA), OnTrack(FreightTrain2, TrackB), PlannedRoute(PassengerTrain, TrackA), Priority(PassengerTrain,1);
+Received by ControlCentreTrafficDispatcher:OnTrack(FreightTrain1, TrackA), OnTrack(FreightTrain2, TrackB), PlannedRoute(PassengerTrain, TrackA), Priority(PassengerTrain,1);
+Inferred by ControlCentreTrafficDispatcher:Conflict(PassengerTrain, FreightTrain1, TrackA), Control(FreightTrain1, TransferTo(TrackC));
+Send by ControlCentreTrafficDispatcher: Control(FreightTrain1, TransferTo(TrackC));
+Received by TracksideEquipment: Control(FreightTrain1, TransferTo(TrackC));
+Send by TracksideEquipment:TrackAvailable(TrackC), NoConflict(TrackC), RightSwitchPosition(TrackC);
+Received by ControlCentreTrafficDispatcher:TrackAvailable(TrackC), NoConflict(TrackC), RightSwitchPosition(TrackC);
+Inferred by ControlCentreTrafficDispatcher:LetGo(FreightTrain1,TrackC);
+Send by ControlCentreTrafficDispatcher:LetGo(FreightTrain1,TrackC);
+Received by FreightTrain1:LetGo(FreightTrain1,TrackC);
+Send by TracksideEquipment: TrainPosition(PassengerTrain), RouteClear(TrackA), TrackAvailable(TrackA), NoConflict(TrackA), RightSwitchPosition(TrackA);
+Received by ControlCentreTrafficDispatcher: TrainPosition(PassengerTrain), RouteClear(TrackA), TrackAvailable(TrackA), NoConflict(TrackA), RightSwitchPosition(TrackA);
+Inferred by ControlCentreTrafficDispatcher:TrackAPassable(FreightTrain1,TrackA);
+Send by ControlCentreTrafficDispatcher:TrackAPassable(FreightTrain1,TrackA);
+Received by FreightTrain1:TrackAPassable(FreightTrain1,TrackA);

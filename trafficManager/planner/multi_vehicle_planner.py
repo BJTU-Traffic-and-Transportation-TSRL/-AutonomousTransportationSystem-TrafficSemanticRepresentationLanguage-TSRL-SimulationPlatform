@@ -40,7 +40,7 @@ class MultiVehiclePlanner(AbstractMultiPlanner):
             config (_type_): 配置参数
             multi_decision (MultiDecision, optional): 多车决策. Defaults to None.
         Returns:
-            Dict[Vehicle, Trajectory]: 多车规划结果
+            Dict[control_Vehicle, Trajectory]: 多车规划结果
         """
         plan_result: Dict[int, Trajectory] = {}
         for vehicle in controlled_observation.vehicles:
@@ -73,7 +73,6 @@ class MultiVehiclePlanner(AbstractMultiPlanner):
 
     def generate_trajectory(
         self, roadgraph:RoadGraph, T, config, vehicle: control_Vehicle, current_lane : AbstractLane, obs_list, decision_list
-
     ):
         next_lane = roadgraph.get_available_next_lane(
             current_lane.id, vehicle.available_lanes
@@ -125,9 +124,16 @@ class MultiVehiclePlanner(AbstractMultiPlanner):
                         f"Fail to plan DECISION LCL path for vehicle {vehicle.id}. Back to normal planner"
                     )
             if path is None:
-                path = traj_generator.lanechange_trajectory_generator(
-                    vehicle, left_lane, obs_list, config, T,
-                )
+                # 检查left_lane是否为None，防止后续访问course_spline时出错
+                if left_lane is None:
+                    logging.warning(f"Cannot find left lane for vehicle {vehicle.id}, keeping current lane instead")
+                    path = traj_generator.lanekeeping_trajectory_generator(
+                        vehicle, lanes, obs_list, config, T,
+                    )
+                else:
+                    path = traj_generator.lanechange_trajectory_generator(
+                        vehicle, left_lane, obs_list, config, T,
+                    )
         elif vehicle.behaviour == Behaviour.LCR:
             # Turn Right
 
@@ -143,9 +149,16 @@ class MultiVehiclePlanner(AbstractMultiPlanner):
                     logging.info(
                         f"Fail to plan DECISION LCR path for vehicle {vehicle.id}. Back to normal planner")
             if path is None:
-                path = traj_generator.lanechange_trajectory_generator(
-                    vehicle, right_lane, obs_list, config, T,
-                )
+                # 检查right_lane是否为None，防止后续访问course_spline时出错
+                if right_lane is None:
+                    logging.warning(f"Cannot find right lane for vehicle {vehicle.id}, keeping current lane instead")
+                    path = traj_generator.lanekeeping_trajectory_generator(
+                        vehicle, lanes, obs_list, config, T,
+                    )
+                else:
+                    path = traj_generator.lanechange_trajectory_generator(
+                        vehicle, right_lane, obs_list, config, T,
+                    )
 
         elif vehicle.behaviour == Behaviour.IN_JUNCTION:
             # in Junction. for now just stop trajectory
@@ -165,6 +178,9 @@ class MultiVehiclePlanner(AbstractMultiPlanner):
                 if (
                     dec_vehicle.id == vehicle.id
                     and decision_list[-1].expected_time - T >= config["MIN_T"]
+                    # To ensure the system to use the decision that has enough time to execute,
+                    # avoid frequent switching or inability to complete actions due to short decision execution time
+                    # 确保系统只采用那些有足够时间执行的决策，避免因为决策执行时间太短而导致的频繁切换或无法完成的动作
                 ):
                     return decision_list
         return None

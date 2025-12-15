@@ -1,0 +1,32 @@
+# tkinter_scenario_selector 地址
+LOC_TKINTER: E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\tkinter_scenario_selector.py
+
+# Classic_Scenarios_Selection.py 地址
+LOC_CLASSIC_SCENARIOS: E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\Classic_Scenarios_Selection.py
+
+# Railway Transportation System - Model1 地址
+LOC_RAILWAY_MODEL1: E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\Railway Transportation System\Model1\Model1.alp
+
+# Railway Transportation System - Path Conflict1 地址
+LOC_RAILWAY_PATH_CONFLICT1: E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\Railway Transportation System\Path Conflict1\Path Conflict1.alp
+
+# Ship Transportation System - Model4 地址
+LOC_SHIP_MODEL4: E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\Ship Transportation System\ship Model\Model4.alp
+
+# SUMO GUI地址
+SUMO_GUI: E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\sumo-1.15.0\bin\sumo-gui.exe
+
+# SUMO netedit.exe 地址
+LOC_SUMO_NETEDIT: E:\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\sumo-1.15.0\bin\netedit.exe
+
+# SUMO netconvert.exe 地址
+LOC_SUMO_NETCONVERT: E:\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\sumo-1.15.0\bin\netconvert.exe
+
+# SUMO.exe 地址
+LOC_SUMO: E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\sumo-1.15.0\bin\sumo.exe
+
+# 手动创建路网说明文件地址
+LOC_MANUAL_NETWORK_CREATION: E:\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\manual_network_creation.html
+
+# 仿真配置文件地址
+LOC_CONFIG: E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\trafficManager\config.yaml

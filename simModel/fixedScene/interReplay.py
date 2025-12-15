@@ -187,7 +187,8 @@ class InterReplayModel:
             try:
                 cur.execute(sql, data)
             except Exception as e:
-                print(sql, data)
+                # 注释掉下面这行以避免在终端上打印SQL语句
+                # print(sql, data)
                 raise e
             cnt += 1
 

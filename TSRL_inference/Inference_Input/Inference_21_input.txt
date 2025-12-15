@@ -1,0 +1,9 @@
+EmergencyStation(0);
+VehicleRightLane(21,0,Rear)
+CheckChangeLane(0);
+RightChangeLaneSafe(0);
+RightChangeLane(0);
+
+RightChangeLane(x):-CheckChangeLane(x),RightChangeLaneSafe(x);//x的右车道可以变道
+
+ASK RightChangeLane(x)

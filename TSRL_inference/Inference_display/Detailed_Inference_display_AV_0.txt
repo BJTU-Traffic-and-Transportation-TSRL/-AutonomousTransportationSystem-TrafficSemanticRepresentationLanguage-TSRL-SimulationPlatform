@@ -1,32 +1,40 @@
 === TSRL详细推理展示 ===
 
 车辆ID: AV_0
-时间: 2025-11-03 12:15:21
+时间: 2025-11-12 23:33:45
 
 === 匹配的规则 ===
-KeepLane(x):-VehicleInLane(x,y,Front),GreaterSpeed(y,x);
+KeepLane(x):-VehicleInLane(y,x,Front),SlowerSpeed(x,y);//y在x的前面，且x的速度比y更慢
 
 === 消息历史 ===
 1. SelfVehicle(AV_0);
-2. InformationRequest2RSU(AV_0,RSU_1);
-3. getVehicleID(bg.13);
-4. VehicleInLane(AV_0,bg.13,Front);
-5. GreaterSpeed(AV_0,bg.13);
-6. getVehicleID(bg.12);
-7. VehicleInLane(AV_0,bg.12,Front);
-8. GreaterSpeed(AV_0,bg.12);
+2. StopAt(bg.13,main);
+3. StopAt(AV_0,main);
+4. StopAt(bg.14,main);
+5. StopAt(bg.15,main);
+6. InformationRequest2RSU(AV_0,RSU_1);
+7. getVehicleID(bg.13);
+8. VehicleInLane(bg.13,AV_0,Front);
+9. GreaterSpeed(bg.13,AV_0);
+10. getVehicleID(bg.12);
+11. VehicleLeftLane(bg.12,AV_0,Front);
+12. SlowerSpeed(bg.12,AV_0);
 
 === 推理输入文件内容 (Inference_AV_0_input.txt) ===
 SelfVehicle(AV_0);
+StopAt(bg.13,main);
+StopAt(AV_0,main);
+StopAt(bg.14,main);
+StopAt(bg.15,main);
 InformationRequest2RSU(AV_0,RSU_1);
 getVehicleID(bg.13);
-VehicleInLane(AV_0,bg.13,Front);
-GreaterSpeed(AV_0,bg.13);
+VehicleInLane(bg.13,AV_0,Front);
+GreaterSpeed(bg.13,AV_0);
 getVehicleID(bg.12);
-VehicleInLane(AV_0,bg.12,Front);
-GreaterSpeed(AV_0,bg.12);
+VehicleLeftLane(bg.12,AV_0,Front);
+SlowerSpeed(bg.12,AV_0);
 
-KeepLane(x):-VehicleInLane(x,y,Front),GreaterSpeed(y,x);
+KeepLane(x):-VehicleInLane(y,x,Front),SlowerSpeed(x,y);//y在x的前面，且x的速度比y更慢
 
 ASK KeepLane(x);
 

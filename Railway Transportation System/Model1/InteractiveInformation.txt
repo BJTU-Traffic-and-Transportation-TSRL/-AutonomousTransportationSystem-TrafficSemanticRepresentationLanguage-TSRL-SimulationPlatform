@@ -1,0 +1,4 @@
+Send by TracksideEquipment: StationAhead(x);
+Received by RBC: StationAhead(x);
+Send by RBC: LetDecelerate(x)
+Received by VOBC: LetDecelerate(x)

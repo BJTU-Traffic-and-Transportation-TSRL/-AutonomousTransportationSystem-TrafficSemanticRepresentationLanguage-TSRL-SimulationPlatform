@@ -1,0 +1,88 @@
+=== TSRL详细推理展示 ===
+
+车辆ID: 1
+时间: 2025-12-03 17:59:26
+
+=== 匹配的规则 ===
+CheckChangeLane(y):-VehicleInLane(x,y,Front),EmergencyStation(x);//x在y的前面，x紧急停止
+
+=== 消息历史 ===
+1. SelfVehicle(1);
+2. IsJunction(2);
+3. HasNextJunction(1,2);
+4. Redlight(0);
+5. StopAt(0,10);
+6. Redlight(1);
+7. LetStop(0);
+8. HasNextJunction(1,2);
+9. EmergencyStation(0);
+10. EmergencyStation(0);
+11. VehicleInLane(1,0,Rear);
+12. EmergencyStation(0);
+13. VehicleInLane(1,0,Rear);
+14. StopAt(0,12);
+15. CheckChangeLane(1);
+16. LeftChangeLaneSafe(1);
+17. LeftChangeLane(1);
+18. LeftChangeLane(1);
+19. LeftChangeLane(1);
+20. LeftChangeLane(1);
+21. CheckChangeLane(1);
+22. RightChangeLaneSafe(1);
+23. RightChangeLane(1);
+24. RightChangeLane(1);
+25. RightChangeLane(1);
+26. RightChangeLane(1);
+27. RightChangeLane(1);
+28. CheckChangeLane(1);
+29. LeftChangeLaneSafe(1);
+30. LeftChangeLane(1);
+31. LeftChangeLane(1);
+32. LeftChangeLane(1);
+33. LeftChangeLane(1);
+34. LeftChangeLane(1);
+
+=== 推理输入文件内容 (Inference_1_input.txt) ===
+SelfVehicle(1);
+IsJunction(2);
+HasNextJunction(1,2);
+Redlight(0);
+StopAt(0,10);
+Redlight(1);
+LetStop(0);
+HasNextJunction(1,2);
+EmergencyStation(0);
+EmergencyStation(0);
+VehicleInLane(1,0,Rear);
+EmergencyStation(0);
+VehicleInLane(1,0,Rear);
+StopAt(0,12);
+CheckChangeLane(1);
+LeftChangeLaneSafe(1);
+LeftChangeLane(1);
+LeftChangeLane(1);
+LeftChangeLane(1);
+LeftChangeLane(1);
+CheckChangeLane(1);
+RightChangeLaneSafe(1);
+RightChangeLane(1);
+RightChangeLane(1);
+RightChangeLane(1);
+RightChangeLane(1);
+RightChangeLane(1);
+CheckChangeLane(1);
+LeftChangeLaneSafe(1);
+LeftChangeLane(1);
+LeftChangeLane(1);
+LeftChangeLane(1);
+LeftChangeLane(1);
+LeftChangeLane(1);
+
+CheckChangeLane(y):-VehicleInLane(x,y,Front),EmergencyStation(x);//x在y的前面，x紧急停止
+
+ASK CheckChangeLane(y);
+
+=== TSRL推理输出内容 (Inference_1_output.txt) ===
+{"y": "1"}
+=== 解析后的决策结果 ===
+CheckChangeLane(1)

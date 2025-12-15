@@ -34,8 +34,7 @@ Scenario_Name = "Human_Vehicle_Interacting"
 file_paths = {
     "Human_Vehicle_Interacting": (
         "networkFiles/Human_Vehicle_Interacting/Human_Vehicle_Interacting.net.xml",
-        "networkFiles/Human_Vehicle_Interacting/Human_Vehicle_Interacting.rou.xml",
-        "networkFiles/Human_Vehicle_Interacting/Human_Vehicle_Interacting.add.xml"
+        "networkFiles/Human_Vehicle_Interacting/Human_Vehicle_Interacting.rou.xml"
     )
 }
 
@@ -54,6 +53,10 @@ def run_model(
 ):
     """运行人车交互模拟"""
     try:
+        # 加载配置文件
+        from utils.load_config import load_config
+        config = load_config("trafficManager/config.yaml")
+        
         model = Model(
             ego_veh_id,
             net_file,
@@ -65,6 +68,7 @@ def run_model(
             carla_cosim=carla_cosim,
             max_steps=int(max_sim_time * 10), # 将max_sim_time转换为步长
             communication=communication, # 全局通信管理器
+            config=config  # 传递配置信息
         )
         model.start() # 初始化
         planner = TrafficManager(model) # 初始化车辆规划模块
@@ -77,20 +81,35 @@ def run_model(
             try:
                 model.moveStep()
                 if model.timeStep % 5 == 0:
-                    # 显示场景信息
+                    # 展示 display_text.txt 文件内容
                     planner.communication_manager.show_display_text(Scenario_Name)
-                    # 导出场景 
-                    #  7.27 打印exportSce()得到的vehicles中的stop_info
-                    roadgraph, vehicles = model.exportSce() 
+                    #导出场景 7.27 打印exportSce()得到的vehicles中的stop_info
+                    export_result = model.exportSce()
+                    # 确保返回值数量正确
+                    if len(export_result) == 3:
+                        roadgraph, vehicles, facilities = export_result
+                    elif len(export_result) == 2:
+                        roadgraph, vehicles = export_result
+                        facilities = {}  # 如果没有facilities，创建一个空字典
+                    else:
+                        # 处理其他情况
+                        continue
+                    
                     # 如果自车开始行驶且场景存在
-                    if model.tpStart and roadgraph: 
-                        trajectories = planner.plan(
-                        model.timeStep * 0.1, roadgraph, vehicles
-                        )# 规划轨迹
+                    if model.tpStart and roadgraph:
+                        log.info(f"Frame {model.timeStep}: Calling planner.plan with {len(vehicles)} vehicles and {len(facilities)} facilities")
+                        if len(export_result) == 3:
+                            trajectories = planner.plan(
+                            model.timeStep * 0.1, roadgraph, vehicles, facilities
+                            )# 规划轨迹
+                        else:
+                            trajectories = planner.plan(
+                            model.timeStep * 0.1, roadgraph, vehicles
+                            )# 规划轨迹
+                        log.info(f"Frame {model.timeStep}: Completed planner.plan")
                         model.setTrajectories(trajectories) # 设置轨迹
                     else:
                         model.ego.exitControlMode() # 退出控制模式
-
                 model.updateVeh()
             except TraCIException as e:
                 log.error(f"TraCI error at step {model.timeStep}: {str(e)}")
@@ -107,18 +126,13 @@ def run_model(
 
 if __name__ == "__main__":
     try:
-        net_file, rou_file,add_file = file_paths['Human_Vehicle_Interacting']
+        if len(file_paths['{}'.format(Scenario_Name)]) == 3:
+            # add.xml exists
+            net_file, rou_file,add_file = file_paths['{}'.format(Scenario_Name)]
+        else:
+            net_file, rou_file = file_paths['{}'.format(Scenario_Name)]
+            add_file = None
         print("net_file:\n", net_file, "\nrou_file:\n", rou_file,"\nadd_file:\n", add_file)
-        
-        # 使用相对于当前文件的路径创建日志和相关文件
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        log_dir = os.path.join(current_dir, "logs")
-        hv_dir = os.path.join(current_dir, "Human_Vehicle_Interacting_output")
-        
-        # 确保必要的目录存在
-        os.makedirs(log_dir, exist_ok=True)
-        os.makedirs(hv_dir, exist_ok=True)
-        
         # 运行模型
         run_model(
             net_file, 

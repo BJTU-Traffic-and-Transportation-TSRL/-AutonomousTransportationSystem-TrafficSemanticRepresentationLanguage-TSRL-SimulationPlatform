@@ -1,0 +1,44 @@
+=== TSRL详细推理展示 ===
+
+车辆ID: AV
+时间: 2025-11-13 09:36:00
+
+=== 匹配的规则 ===
+KeepLane(x):-VehicleInLane(y,x,Front),SlowerSpeed(x,y);//y在x的前面，且x的速度比y更慢
+
+=== 消息历史 ===
+1. SelfVehicle(AV);
+2. StopAt(bg.13,main);
+3. StopAt(AV,main);
+4. StopAt(bg.14,main);
+5. StopAt(bg.15,main);
+6. InformationRequest2RSU(AV,RSU_1);
+7. getVehicleID(bg.13);
+8. VehicleInLane(bg.13,AV,Front);
+9. GreaterSpeed(bg.13,AV);
+10. getVehicleID(bg.12);
+11. VehicleLeftLane(bg.12,AV,Front);
+12. SlowerSpeed(bg.12,AV);
+
+=== 推理输入文件内容 (Inference_AV_input.txt) ===
+SelfVehicle(AV);
+StopAt(bg.13,main);
+StopAt(AV,main);
+StopAt(bg.14,main);
+StopAt(bg.15,main);
+InformationRequest2RSU(AV,RSU_1);
+getVehicleID(bg.13);
+VehicleInLane(bg.13,AV,Front);
+GreaterSpeed(bg.13,AV);
+getVehicleID(bg.12);
+VehicleLeftLane(bg.12,AV,Front);
+SlowerSpeed(bg.12,AV);
+
+KeepLane(x):-VehicleInLane(y,x,Front),SlowerSpeed(x,y);//y在x的前面，且x的速度比y更慢
+
+ASK KeepLane(x);
+
+=== TSRL推理输出内容 (Inference_AV_output.txt) ===
+{"x": "AV"}
+=== 解析后的决策结果 ===
+KeepLane(AV)

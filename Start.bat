@@ -1,8 +1,8 @@
 @echo off
-title ATSISP Scenario Selector
+title Traffic Semantic Intersection Scenario Selector
 
 echo ========================================
-echo   ATSISP Traffic Simulation Scenario Selector
+echo   Traffic Semantic Intersection Scenario Selector
 echo ========================================
 echo.
 
@@ -16,20 +16,20 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo Starting scenario selector...
+echo Starting Traffic Semantic Intersection Scenario Selector...
 echo.
 
-REM Start Tkinter scenario selector
-python tkinter_scenario_selector.py
+REM Start Traffic Semantic Intersection Scenario Selector
+python Transportation_Semantic_Selector.py
 
 if %errorlevel% neq 0 (
     echo.
-    echo Error: Failed to start scenario selector.
+    echo Error: Failed to start Traffic Semantic Intersection Scenario Selector.
     echo Please make sure you have installed all dependencies.
     echo.
     pause
     exit /b 1
 )
 
-echo Scenario selector started.
+echo Traffic Semantic Intersection Scenario Selector started.   
 pause

@@ -1,0 +1,68 @@
+=== TSRL详细推理展示 ===
+
+车辆ID: 0
+时间: 2025-12-13 17:51:28
+
+=== 匹配的规则 ===
+CheckChangeLane(x):-VehicleInLane(y,x,Front),GreaterSpeed(x,y);//y在x的前面，且x的速度比y更快
+
+=== 消息历史 ===
+1. SelfVehicle(0);
+2. StopAt(13,main);
+3. InformationRequest2RSU(0,RSU_1);
+4. GetVehicleID(12);
+5. VehicleInLane(12,0,Front);
+6. GreaterSpeed(12,0);
+7. GetVehicleID(11);
+8. VehicleInLane(11,0,Front);
+9. SlowerSpeed(11,0);
+10. CheckChangeLane(0);
+11. LeftChangeLaneSafe(0);
+12. LeftChangeLane(0);
+13. LeftChangeLane(0);
+14. LeftChangeLane(0);
+15. LeftChangeLane(0);
+16. LeftChangeLane(0);
+17. CheckChangeLane(0);
+18. LeftChangeLaneSafe(0);
+19. RightChangeLaneSafe(0);
+20. RightChangeLane(0);
+21. RightChangeLane(0);
+22. RightChangeLane(0);
+23. RightChangeLane(0);
+24. RightChangeLane(0);
+
+=== 推理输入文件内容 (Inference_0_input.txt) ===
+SelfVehicle(0);
+StopAt(13,main);
+InformationRequest2RSU(0,RSU_1);
+GetVehicleID(12);
+VehicleInLane(12,0,Front);
+GreaterSpeed(12,0);
+GetVehicleID(11);
+VehicleInLane(11,0,Front);
+SlowerSpeed(11,0);
+CheckChangeLane(0);
+LeftChangeLaneSafe(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+CheckChangeLane(0);
+LeftChangeLaneSafe(0);
+RightChangeLaneSafe(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+
+CheckChangeLane(x):-VehicleInLane(y,x,Front),GreaterSpeed(x,y);//y在x的前面，且x的速度比y更快
+
+ASK CheckChangeLane(x);
+
+=== TSRL推理输出内容 (Inference_0_output.txt) ===
+{"x": "0"}
+=== 解析后的决策结果 ===
+CheckChangeLane(0)

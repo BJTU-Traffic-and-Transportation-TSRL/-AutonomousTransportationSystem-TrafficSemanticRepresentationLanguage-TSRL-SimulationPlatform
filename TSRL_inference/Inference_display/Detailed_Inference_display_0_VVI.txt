@@ -1,0 +1,100 @@
+=== TSRL详细推理展示 ===
+
+车辆ID: 0
+时间: 2025-12-03 18:09:00
+
+=== 匹配的规则 ===
+CheckChangeLane(y):-VehicleInLane(x,y,Front),EmergencyStation(x);//x在y的前面，x紧急停止
+
+=== 消息历史 ===
+1. EmergencyStation(2);
+2. EmergencyStation(1);
+3. EmergencyStation(2);
+4. EmergencyStation(1);
+5. EmergencyStation(0);
+6. EmergencyStation(0);
+7. EmergencyStation(0);
+8. EmergencyStation(2);
+9. EmergencyStation(1);
+10. EmergencyStation(2);
+11. EmergencyStation(1);
+12. EmergencyStation(2);
+13. VehicleRightLane(0,2,Rear)
+14. EmergencyStation(1);
+15. VehicleInLane(0,1,Rear);
+16. EmergencyStation(2);
+17. VehicleRightLane(0,2,Rear)
+18. EmergencyStation(1);
+19. VehicleInLane(0,1,Rear);
+20. EmergencyStation(2);
+21. VehicleRightLane(0,2,Rear)
+22. EmergencyStation(1);
+23. VehicleInLane(0,1,Rear);
+24. EmergencyStation(2);
+25. VehicleRightLane(0,2,Rear)
+26. EmergencyStation(1);
+27. VehicleInLane(0,1,Rear);
+28. CheckChangeLane(0);
+29. LeftChangeLaneSafe(0);
+30. LeftChangeLane(0);
+31. LeftChangeLane(0);
+32. LeftChangeLane(0);
+33. LeftChangeLane(0);
+34. CheckChangeLane(0);
+35. RightChangeLaneSafe(0);
+36. RightChangeLane(0);
+37. RightChangeLane(0);
+38. RightChangeLane(0);
+39. RightChangeLane(0);
+40. RightChangeLane(0);
+
+=== 推理输入文件内容 (Inference_0_input.txt) ===
+EmergencyStation(2);
+EmergencyStation(1);
+EmergencyStation(2);
+EmergencyStation(1);
+EmergencyStation(0);
+EmergencyStation(0);
+EmergencyStation(0);
+EmergencyStation(2);
+EmergencyStation(1);
+EmergencyStation(2);
+EmergencyStation(1);
+EmergencyStation(2);
+VehicleRightLane(0,2,Rear)
+EmergencyStation(1);
+VehicleInLane(0,1,Rear);
+EmergencyStation(2);
+VehicleRightLane(0,2,Rear)
+EmergencyStation(1);
+VehicleInLane(0,1,Rear);
+EmergencyStation(2);
+VehicleRightLane(0,2,Rear)
+EmergencyStation(1);
+VehicleInLane(0,1,Rear);
+EmergencyStation(2);
+VehicleRightLane(0,2,Rear)
+EmergencyStation(1);
+VehicleInLane(0,1,Rear);
+CheckChangeLane(0);
+LeftChangeLaneSafe(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+LeftChangeLane(0);
+CheckChangeLane(0);
+RightChangeLaneSafe(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+RightChangeLane(0);
+
+CheckChangeLane(y):-VehicleInLane(x,y,Front),EmergencyStation(x);//x在y的前面，x紧急停止
+
+ASK CheckChangeLane(y);
+
+=== TSRL推理输出内容 (Inference_0_output.txt) ===
+{"y": "0"}
+=== 解析后的决策结果 ===
+CheckChangeLane(0)

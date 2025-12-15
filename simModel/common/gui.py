@@ -4,6 +4,7 @@ from utils.simBase import CoordTF
 from typing import Tuple
 import os
 import traci
+import tkinter.messagebox as messagebox
 
 """
 GUI:负责所有窗口的初始化
@@ -90,23 +91,22 @@ class GUI:
                 )
 
         dpg.bind_theme(global_theme)
-        # 回放模式按钮主题
-        if self.mode == 'replay-ego' or self.mode == 'replay-local':
-            with dpg.theme(tag="ResumeButtonTheme"):
-                with dpg.theme_component(dpg.mvButton):
-                    dpg.add_theme_color(dpg.mvThemeCol_Button, (5, 150, 18))
-                    dpg.add_theme_color(
-                        dpg.mvThemeCol_ButtonHovered, (12, 207, 23))
-                    dpg.add_theme_color(
-                        dpg.mvThemeCol_ButtonActive, (2, 120, 10))
+        # 定义暂停/恢复按钮主题（所有模式通用）
+        with dpg.theme(tag="ResumeButtonTheme"):
+            with dpg.theme_component(dpg.mvButton):
+                dpg.add_theme_color(dpg.mvThemeCol_Button, (5, 150, 18))
+                dpg.add_theme_color(
+                    dpg.mvThemeCol_ButtonHovered, (12, 207, 23))
+                dpg.add_theme_color(
+                    dpg.mvThemeCol_ButtonActive, (2, 120, 10))
 
-            with dpg.theme(tag="PauseButtonTheme"):
-                with dpg.theme_component(dpg.mvButton):
-                    dpg.add_theme_color(dpg.mvThemeCol_Button, (150, 5, 18))
-                    dpg.add_theme_color(
-                        dpg.mvThemeCol_ButtonHovered, (207, 12, 23))
-                    dpg.add_theme_color(
-                        dpg.mvThemeCol_ButtonActive, (120, 2, 10))
+        with dpg.theme(tag="PauseButtonTheme"):
+            with dpg.theme_component(dpg.mvButton):
+                dpg.add_theme_color(dpg.mvThemeCol_Button, (150, 5, 18))
+                dpg.add_theme_color(
+                    dpg.mvThemeCol_ButtonHovered, (207, 12, 23))
+                dpg.add_theme_color(
+                    dpg.mvThemeCol_ButtonActive, (120, 2, 10))
         # Ego模式图表主题
         if self.mode == 'real-time-ego' or self.mode == 'replay-ego':
             with dpg.theme(tag="plot_theme_v"):
@@ -312,43 +312,43 @@ class GUI:
                 # 将文本节点（infoText）挂载到simInfo窗口下
                 dpg.add_draw_node(tag="infoText", parent="simInfo")
 
-            # 9.9 新增交互控制窗口
-            with dpg.window(
-                tag='InteractionWindow',
-                label='Interaction Control',
-                no_close=True,
-            ):
-                dpg.add_button(
-                    label="Start Interaction", 
-                    tag="InteractionButton",
-                    callback=self.start_interaction
-                )
-                # 添加暂停按钮
-                dpg.add_button(
-                    label="Pause", tag="PauseResumeButton",
-                    callback=self.toggle
-                )
-            
-            dpg.bind_item_theme('PauseResumeButton', 'PauseButtonTheme')
+        # 9.9 新增交互控制窗口 - 在所有模式下创建
+        with dpg.window(
+            tag='InteractionWindow',
+            label='Interaction Control',
+            no_close=True,
+        ):
+            dpg.add_button(
+                label="Start Interaction", 
+                tag="InteractionButton",
+                callback=self.start_interaction
+            )
+            # 添加暂停按钮
+            dpg.add_button(
+                label="Pause", tag="PauseResumeButton",
+                callback=self.toggle
+            )
+        
+        dpg.bind_item_theme('PauseResumeButton', 'PauseButtonTheme')
 
-            # 添加用户输入窗口（初始隐藏）
-            with dpg.window(
-                tag='UserInputWindow',
-                label='User Input',
-                no_close=True,
-                show=False,
-            ):
-                dpg.add_input_text(
-                    tag="UserInputText",
-                    label="Enter Command",
-                    default_value="",
-                    width=300
-                )
-                dpg.add_button(
-                    label="Finish Prompt Input", 
-                    tag="InputCompleteButton",
-                    callback=self.complete_input
-                )
+        # 添加用户输入窗口（初始隐藏） - 在所有模式下创建
+        with dpg.window(
+            tag='UserInputWindow',
+            label='User Input',
+            no_close=True,
+            show=False,
+        ):
+            dpg.add_input_text(
+                tag="UserInputText",
+                label="Enter Command",
+                default_value="",
+                width=300
+            )
+            dpg.add_button(
+                label="Finish Prompt Input", 
+                tag="InputCompleteButton",
+                callback=self.complete_input
+            )
 
     def create_handlers(self):
         with dpg.handler_registry():
@@ -451,6 +451,16 @@ class GUI:
             dpg.set_item_height('simInfo', 190)
             dpg.set_item_pos('simInfo', (10, 630))
             
+            # 调整交互控制窗口尺寸和位置
+            dpg.set_item_width('InteractionWindow', 200)
+            dpg.set_item_height('InteractionWindow', 30)
+            dpg.set_item_pos('InteractionWindow', (10, 760))
+
+            # 调整用户输入窗口尺寸和位置
+            dpg.set_item_width('UserInputWindow', 500)
+            dpg.set_item_height('UserInputWindow', 30)
+            dpg.set_item_pos('UserInputWindow', (220, 760))
+            
         elif self.mode == 'replay-local':
             # 调整控制窗口尺寸
             dpg.set_item_width('ControlWindow', 700)
@@ -461,6 +471,16 @@ class GUI:
             dpg.set_item_width("MainWindow", 700)
             dpg.set_item_height("MainWindow", 700)
             dpg.set_item_pos("MainWindow", (10, 120))
+            
+            # 调整交互控制窗口尺寸和位置
+            dpg.set_item_width('InteractionWindow', 200)
+            dpg.set_item_height('InteractionWindow', 30)
+            dpg.set_item_pos('InteractionWindow', (10, 760))
+
+            # 调整用户输入窗口尺寸和位置
+            dpg.set_item_width('UserInputWindow', 500)
+            dpg.set_item_height('UserInputWindow', 30)
+            dpg.set_item_pos('UserInputWindow', (220, 760))
             
         else:
             raise TypeError('Nonexistent mode!')
@@ -541,12 +561,33 @@ class GUI:
     # 9.9 新增方法：开始交互
     def start_interaction(self):
         """开始交互，暂停仿真并显示输入窗口"""
-        self.pause()
-        dpg.configure_item('UserInputWindow', show=True)
-        # 添加以下代码使输入框自动获得焦点
-        dpg.focus_item("UserInputText")
-        # 暂停SUMO仿真
-        traci.simulation.pause(True)
+        try:
+            # 暂停GUI仿真
+            self.pause()
+            
+            # 显示用户输入窗口
+            dpg.configure_item('UserInputWindow', show=True)
+            
+            # 添加以下代码使输入框自动获得焦点
+            dpg.focus_item("UserInputText")
+            
+            # 暂停SUMO仿真 - 使用正确的traci方法
+            if traci.isLoaded():
+                try:
+                    # 尝试使用setMode方法暂停仿真
+                    traci.simulation.setMode(traci.constants.MODE_PAUSED)
+                except AttributeError:
+                    try:
+                        # 尝试使用step方法控制仿真（有些traci版本可能不支持setMode）
+                        print("使用traci.simulationStep()控制仿真")
+                    except Exception as inner_e:
+                        print(f"暂停SUMO仿真时出错: {str(inner_e)}")
+            else:
+                print("警告: traci未连接，无法暂停SUMO仿真")
+                
+        except Exception as e:
+            print(f"start_interaction方法执行错误: {str(e)}")
+            messagebox.showerror("错误", f"开始交互时出错: {str(e)}")
 
     # 9.10 新增方法：完成输入
     def complete_input(self):
@@ -554,7 +595,6 @@ class GUI:
         self.user_input = dpg.get_value("UserInputText")
         dpg.configure_item('UserInputWindow', show=False)
         dpg.set_value("UserInputText", "")
-        
         # 恢复仿真运行
         self.resume()
         # 如果设置了回调函数，则调用它
@@ -562,8 +602,25 @@ class GUI:
             self.input_callback(self.user_input)
             # 清除回调函数引用
             self.input_callback = None
-        # SUMO模型仿真继续
-        traci.simulation.resume()
+        # 将用户输入通过model的EnvCommunicator实例发送出去
+        if self.model and hasattr(self.model, 'env_communicator'):
+            try:
+                # 使用EnvCommunicator的send方法发送用户输入
+                self.model.env_communicator.send(self.user_input)
+            except Exception as e:
+                print(f"发送消息时出错: {e}")
+        
+        # SUMO模型仿真继续 - 移出条件块，确保总是尝试恢复仿真
+        if traci.isLoaded():
+            try:
+                # 尝试使用setMode方法恢复仿真
+                traci.simulation.setMode(traci.constants.MODE_RUNNING)
+            except AttributeError:
+                try:
+                    # 尝试使用step方法控制仿真（有些traci版本可能不支持setMode）
+                    print("使用traci.simulationStep()恢复仿真")
+                except Exception as inner_e:
+                    print(f"恢复SUMO仿真时出错: {str(inner_e)}")
 
     def set_input_callback(self, callback):
         """设置输入回调函数"""

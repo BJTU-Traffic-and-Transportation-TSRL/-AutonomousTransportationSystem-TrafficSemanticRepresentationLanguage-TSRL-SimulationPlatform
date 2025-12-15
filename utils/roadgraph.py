@@ -75,9 +75,18 @@ class AbstractLane(ABC):
 
     @property
     def spline_length(self):
+        # 检查course_spline是否为空
+        if self.course_spline is None:
+            logging.warning(f"course_spline is None for lane {self.id} in spline_length property")
+            return 0
         return self.course_spline.s[-1]
 
     def getPlotElem(self):
+        # 检查course_spline是否为空
+        if self.course_spline is None:
+            logging.warning(f"course_spline is None for lane {self.id} in getPlotElem method")
+            return
+            
         s = np.linspace(0, self.course_spline.s[-1], num=50)
         self.center_line = [
             self.course_spline.calc_position(si) for si in s

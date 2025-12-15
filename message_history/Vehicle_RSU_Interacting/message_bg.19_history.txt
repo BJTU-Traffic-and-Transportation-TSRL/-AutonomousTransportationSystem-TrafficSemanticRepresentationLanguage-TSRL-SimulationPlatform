@@ -1,9 +1,0 @@
-RightChangeLane(AV_0);
-RightChangeLane(AV_0);
-RightChangeLane(AV_0);
-RightChangeLane(AV_0);
-RightChangeLane(AV_0);
-RightChangeLane(AV_0);
-RightChangeLane(AV_0);
-RightChangeLane(AV_0);
-RightChangeLane(AV_0);

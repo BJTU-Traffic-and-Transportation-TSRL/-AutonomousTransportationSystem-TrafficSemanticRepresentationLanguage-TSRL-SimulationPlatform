@@ -28,8 +28,6 @@ from utils.simBase import MapCoordTF, vehType
 from evaluation.evaluation import RealTimeEvaluation
 import read_stop_info # 7.20 添加停车解析内容
 
-from TSRL_interaction.vehicle_communication import CommunicationManager,VehicleCommunicator
-
 class Model:
     '''
         egoID: id of ego car,str;
@@ -61,6 +59,7 @@ class Model:
                  max_steps: int = 1000,# 4.23 添加最大模拟步长
                  communication: bool = False, # 25.8.16 新增参数，全局通信管理器
                  Scenario_Name: str = None, # 25.10.20 场景名称
+                 config: dict = None, # 新增参数，用于传递配置信息
                  ) -> None:
 
         print('[green bold]Model initialized at {}.[/green bold]'.format(
@@ -83,7 +82,11 @@ class Model:
         self.carla_cosim = carla_cosim # 是否需要Carla协同仿真
         self.communication=communication # 25.8.16 新增参数，是否添加全局通信管理器
         self.Scenario_Name = Scenario_Name # 25.10.20 场景名称
-        self.ego = egoCar(egoID)
+        self.config = config  # 保存配置信息
+        
+        # 从配置中获取DEAREA值，如果不存在则使用默认值50.0
+        dearea = config.get("DEAREA", 50.0) if config else 50.0
+        self.ego = egoCar(egoID, deArea=dearea)
 
         if dataBase:
             self.dataBase = dataBase
@@ -154,10 +157,15 @@ class Model:
 
     # 创建数据库
     def createDatabase(self):
+        # 确保Database目录存在
+        db_dir = "Database"
+        if not os.path.exists(db_dir):
+            os.makedirs(db_dir)
         # if database exist then delete it
-        if os.path.exists(self.dataBase):
-            os.remove(self.dataBase)
-        conn = sqlite3.connect(self.dataBase)
+        db_path = os.path.join(db_dir, self.dataBase)
+        if os.path.exists(db_path):
+            os.remove(db_path)
+        conn = sqlite3.connect(db_path)
         cur = conn.cursor()
 
         cur.execute('''CREATE TABLE IF NOT EXISTS simINFO(
@@ -279,7 +287,7 @@ class Model:
     def simDescriptionCommit(self, simNote: str):
         currTime = datetime.now()
         insertQuery = '''INSERT INTO simINFO VALUES (?, ?, ?, ?, ?, ?, ?, ?);'''
-        conn = sqlite3.connect(self.dataBase)
+        conn = sqlite3.connect("Database/" + self.dataBase)
         cur = conn.cursor()
         cur.execute(
             insertQuery,
@@ -300,7 +308,7 @@ class Model:
     def dataStore(self):
         # stime = time.time()
         cnt = 0
-        conn = sqlite3.connect(self.dataBase, check_same_thread=False)
+        conn = sqlite3.connect("Database/" + self.dataBase, check_same_thread=False)
         cur = conn.cursor()
         while cnt < 1000 and not self.dataQue.empty():
             tableName, data = self.dataQue.get()
@@ -408,9 +416,6 @@ class Model:
                 print("车辆ID：", v.id, "停车信息：", v.stop_info)
             else:
                 print("车辆ID：", v.id, "停车信息：无")
-        # 7.17，display初始化：初始化所有车辆的展示文本数据库
-
-        # 7.17，display初始化：初始化所有车辆的展示文本数据库
 
     # 绘制车辆状态
     def plotVState(self):
@@ -622,17 +627,61 @@ class Model:
             # 确保目录存在
             message_history_path = os.path.join("message_history", self.Scenario_Name)
             os.makedirs(message_history_path, exist_ok=True)
-            # 8.27 新增：清理消息文件or清理消息内容：
-            if if_clear_message_file == True:
-                # 8.19 新增：删除所有消息历史文件
-                traffic_manager.communication_manager.cleanup_message_files()
-                # 8.27 新增：删除display_text文件
-                traffic_manager.communication_manager.cleanup_display_text(loc=message_history_path)
+            
+            # 只有在通信功能启用时才清理通信相关的消息文件
+            if hasattr(traffic_manager, 'communication_manager') and traffic_manager.communication_manager:
+                # 8.27 新增：清理消息文件or清理消息内容：
+                if if_clear_message_file == True:
+                    # 8.19 新增：删除所有消息历史文件
+                    traffic_manager.communication_manager.cleanup_message_files()
+                    # 8.27 新增：删除display_text文件
+                    traffic_manager.communication_manager.cleanup_display_text(loc=message_history_path)
+                else:
+                    # 8.19 新增：清空所有消息历史文件内容
+                    traffic_manager.communication_manager.clear_message_files_content()
+                    # 8.27 新增：清空display_text文件里的内容
+                    traffic_manager.communication_manager.clear_display_text_content(loc=message_history_path)
             else:
-                # 8.19 新增：清空所有消息历史文件内容
-                traffic_manager.communication_manager.clear_message_files_content()
-                # 8.27 新增：清空display_text文件里的内容
-                traffic_manager.communication_manager.clear_display_text_content(loc=message_history_path)
+                # 通信功能未启用，只清理本地文件
+                if if_clear_message_file:
+                    # 删除本地消息文件
+                    import glob
+                    pattern = os.path.join(message_history_path, "message_*_history.txt")
+                    files_to_remove = glob.glob(pattern)
+                    for file_path in files_to_remove:
+                        try:
+                            os.remove(file_path)
+                        except Exception as e:
+                            print(f"删除文件 {file_path} 时出错: {e}")
+                    
+                    # 删除display_text文件
+                    display_file = os.path.join(message_history_path, "display_text.txt")
+                    if os.path.exists(display_file):
+                        try:
+                            os.remove(display_file)
+                        except Exception as e:
+                            print(f"删除文件 {display_file} 时出错: {e}")
+                else:
+                    # 清空本地消息文件内容
+                    import glob
+                    pattern = os.path.join(message_history_path, "message_*_history.txt")
+                    files_to_clear = glob.glob(pattern)
+                    for file_path in files_to_clear:
+                        try:
+                            with open(file_path, 'w') as f:
+                                f.truncate(0)
+                        except Exception as e:
+                            print(f"清空文件 {file_path} 内容时出错: {e}")
+                    
+                    # 清空display_text文件内容
+                    display_file = os.path.join(message_history_path, "display_text.txt")
+                    if os.path.exists(display_file):
+                        try:
+                            with open(display_file, 'w', encoding='utf-8') as f:
+                                f.truncate(0)
+                        except Exception as e:
+                            print(f"清空文件 {display_file} 内容时出错: {e}")
+                            
         except Exception as e:
             print(f"Error in clear_message_files: {str(e)}")
             raise
@@ -764,7 +813,7 @@ class Model:
         # top-right: x2, y2
         ((x1, y1), (x2, y2)) = traci.simulation.getNetBoundary()
         netBoundary = f"{x1},{y1} {x2},{y2}"
-        conn = sqlite3.connect(self.dataBase)
+        conn = sqlite3.connect("Database/" + self.dataBase)
         cur = conn.cursor()
         cur.execute(f"""UPDATE simINFO SET netBoundary = '{netBoundary}';""")
         conn.commit()
