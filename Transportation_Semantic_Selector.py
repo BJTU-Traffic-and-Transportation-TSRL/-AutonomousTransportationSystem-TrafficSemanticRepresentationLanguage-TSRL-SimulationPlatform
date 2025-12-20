@@ -10,9 +10,7 @@ import webbrowser
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 # 导入地址配置文件
 from utils.load_config import load_config
-loc_config = load_config("E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\loc_config.yaml")
-
-
+loc_config = load_config(os.path.join(PROJECT_ROOT, "loc_config.yaml"))
 
 class TrafficSemanticIntersectionSelector:
     def __init__(self, root):
@@ -122,8 +120,10 @@ class TrafficSemanticIntersectionSelector:
     def run_tkinter_scenario_selector(self):
         """运行tkinter场景选择器程序"""
         try:
+            # 将相对路径转换为绝对路径
+            tkinter_path = os.path.join(PROJECT_ROOT, loc_config["LOC_TKINTER"])
             # 使用subprocess.Popen启动tkinter_scenario_selector.py
-            subprocess.Popen([sys.executable, loc_config["LOC_TKINTER"]], 
+            subprocess.Popen([sys.executable, tkinter_path], 
                            creationflags=subprocess.CREATE_NEW_CONSOLE)
             messagebox.showinfo("提示", "已启动交通场景选择器程序\n请查看新打开的窗口。")
         except Exception as e:
@@ -215,7 +215,7 @@ class TrafficSemanticIntersectionSelector:
     def run_railway_model1(self):
         """运行轨道交通场景1：列车与无线闭塞中心交互场景"""
         try:
-            model1_path = loc_config["LOC_RAILWAY_MODEL1"]
+            model1_path = os.path.join(PROJECT_ROOT, loc_config["LOC_RAILWAY_MODEL1"])
             if os.path.exists(model1_path):
                 # 使用系统默认程序打开AnyLogic模型文件
                 os.startfile(model1_path)
@@ -228,7 +228,7 @@ class TrafficSemanticIntersectionSelector:
     def run_railway_path_conflict1(self):
         """运行轨道交通场景2：会让站货运列车避让客运列车场景"""
         try:
-            path_conflict1_path = loc_config["LOC_RAILWAY_PATH_CONFLICT1"]
+            path_conflict1_path = os.path.join(PROJECT_ROOT, loc_config["LOC_RAILWAY_PATH_CONFLICT1"])
             if os.path.exists(path_conflict1_path):
                 # 使用系统默认程序打开AnyLogic模型文件
                 os.startfile(path_conflict1_path)
@@ -411,7 +411,7 @@ class TrafficSemanticIntersectionSelector:
     def run_ship_model(self):
         """运行水运交通场景"""
         try:
-            ship_model_path = loc_config["LOC_SHIP_MODEL4"]
+            ship_model_path = os.path.join(PROJECT_ROOT, loc_config["LOC_SHIP_MODEL4"])
             if os.path.exists(ship_model_path):
                 # 使用系统默认程序打开AnyLogic模型文件
                 os.startfile(ship_model_path)

@@ -17,7 +17,7 @@ log = logger.get_logger(__name__)
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 # 导入地址配置文件
 from utils.load_config import load_config
-loc_config = load_config("E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\loc_config.yaml")
+loc_config = load_config(os.path.join(PROJECT_ROOT, "loc_config.yaml"))
 
 class ManualInstructionDialog:
     def __init__(self, parent, scenario_name, simulation_process):

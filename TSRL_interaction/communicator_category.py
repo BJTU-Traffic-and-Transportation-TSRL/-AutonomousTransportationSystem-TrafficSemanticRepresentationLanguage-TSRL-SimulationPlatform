@@ -5,7 +5,6 @@
 转移日期：2025-11-08
 更新日期：2025-11-11 - 迁移核心类回vehicle_communication.py
 """
-
 # 目标：将特定的通信器类保留在此文件
 from __future__ import annotations
 import glob
@@ -21,7 +20,6 @@ from add.display import NonBlockingInferenceWindow, NonBlockingVehicleDisplayWin
 
 # 从vehicle_communication导入核心通信类
 from TSRL_interaction.vehicle_communication import Communicator, CommunicationManager, Message, MessageList, Performative
-
 class VehicleCommunicator(Communicator):
     """车辆通信器，负责车辆间通信"""
     def __init__(self, vehicle_id, vehicle: 'control_Vehicle', communication_manager: CommunicationManager, if_egoCar: bool = False):
@@ -56,8 +54,8 @@ class VehicleCommunicator(Communicator):
         message = Message(
             sender_id=self.id,
             sender_category=self,
-            receiver_id=target_id or "broadcast",
-            receiver_category=target_category,
+            Receiver_id=target_id or "broadcast",
+            Receiver_category=target_category,
             content=content,
             performative=performative
         )
@@ -95,8 +93,8 @@ class VehicleCommunicator(Communicator):
         received_message = Message(
             sender_id=message.sender_id,
             sender_category=message.sender_category,
-            receiver_id=self.id,
-            receiver_category=self,
+            Receiver_id=self.id,
+            Receiver_category=self,
             content=content,
             performative=message.performative
         )
@@ -185,8 +183,8 @@ class RSUCommunicator(Communicator):
         message = Message(
             sender_id=self.id,
             sender_category=self,
-            receiver_id=target_id or "broadcast",
-            receiver_category=None,  # RSU发送消息时可能没有指定接收者类别
+            Receiver_id=target_id or "broadcast",
+            Receiver_category=None,  # RSU发送消息时可能没有指定接收者类别
             content=content,  # 发送原始内容，不带前缀
             performative=performative
         )
@@ -222,10 +220,10 @@ class RSUCommunicator(Communicator):
         reply_content = f"{reply_prefix}{content}"
         # 存储消息到本地列表
         reply_message = Message(
-            sender_id=message.receiver_id,
+            sender_id=message.Receiver_id,
             sender_category=self,
-            receiver_id=message.sender_id,
-            receiver_category=message.sender_category,
+            Receiver_id=message.sender_id,
+            Receiver_category=message.sender_category,
             content=content,
             performative=Performative.Inform
         )
@@ -328,8 +326,8 @@ class EnvCommunicator(Communicator):
         message = Message(
             sender_id=self.id,
             sender_category=self,
-            receiver_id=target_id or "broadcast",
-            receiver_category=None,
+            Receiver_id=target_id or "broadcast",
+            Receiver_category=None,
             content=content,
             performative=performative
         )
@@ -365,10 +363,10 @@ class EnvCommunicator(Communicator):
         
         # 存储消息到本地列表
         reply_message = Message(
-            sender_id=message.receiver_id,
+            sender_id=message.Receiver_id,
             sender_category=self,
-            receiver_id=message.sender_id,
-            receiver_category=message.sender_category,
+            Receiver_id=message.sender_id,
+            Receiver_category=message.sender_category,
             content=content,
             performative=Performative.Inform
         )

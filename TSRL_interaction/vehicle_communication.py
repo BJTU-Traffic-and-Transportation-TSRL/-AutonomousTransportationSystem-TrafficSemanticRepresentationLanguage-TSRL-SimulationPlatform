@@ -57,8 +57,8 @@ class Message:
         self,
         sender_id: str,# 发送者
         sender_category: Communicator,# 发送者类别
-        receiver_id: str,# 接收者
-        receiver_category: Communicator,# 接收者类别
+        Receiver_id: str,# 接收者
+        Receiver_category: Communicator,# 接收者类别
         content: str, # 消息内容
         performative: Performative,# 述行词
         message_id: Optional[str] = None, # 消息体标识符
@@ -76,8 +76,8 @@ class Message:
         self.message_id = message_id or str(uuid.uuid4())  # 消息体标识符
         self.sender_id = sender_id  # 发送者
         self.sender_category = sender_category  # 发送者类别
-        self.receiver_id = receiver_id  # 接收者
-        self.receiver_category = receiver_category  # 接收者类别
+        self.Receiver_id = Receiver_id  # 接收者
+        self.Receiver_category = Receiver_category  # 接收者类别
         self.content = content  # 消息内容
         self.performative = performative  # 述行词
         self.timestamp = timestamp or time.time()  # 时间戳
@@ -94,7 +94,7 @@ class Message:
 
     def __str__(self) -> str:
         """返回消息的字符串表示"""
-        return f"Message(id={self.message_id}, sender={self.sender_id}, receiver={self.receiver_id}, performative={self.performative}, content={self.content})"
+        return f"Message(id={self.message_id}, sender={self.sender_id}, Receiver={self.Receiver_id}, performative={self.performative}, content={self.content})"
 
     def __repr__(self) -> str:
         """返回消息的详细表示"""
@@ -114,7 +114,7 @@ class MessageList:
     def print_message_list(self):
         """打印消息列表"""
         for msg in self.message_list:
-            print(f"{msg.sender_id} -> {msg.receiver_id}: {msg.content}\n")
+            print(f"{msg.sender_id} -> {msg.Receiver_id}: {msg.content}\n")
     
     # 定义方法：将当前车辆的消息列表保存到当前文件夹的文本文档中
     def save_message_list(self, vehicle_id: str, loc: str):
@@ -126,7 +126,7 @@ class MessageList:
             # 9.18 先将当前文件中的消息列表清空
             file.truncate(0)
             for msg in self.message_list:
-                # file.write(f"{msg.sender_id} -> {msg.receiver_id}: {msg.content}\n")
+                # file.write(f"{msg.sender_id} -> {msg.Receiver_id}: {msg.content}\n")
                 file.write(f"{msg.content}\n")
 
 class Communicator:
@@ -175,12 +175,12 @@ class CommunicationManager:
     def send_message(self, message: Message):
         """发送消息并路由到接收者"""
         # 记录消息到日志
-        self.logger.info(f"Message sent: {message.sender_category}{message.sender_id} -> {message.receiver_category}{message.receiver_id}: {message.content}")
+        self.logger.info(f"Message sent: {message.sender_category}{message.sender_id} -> {message.Receiver_category}{message.Receiver_id}: {message.content}")
         # 直接发送给目标接收者
         target_found = False
         for subscriber_id, subscriber in self.subscribers.items():
             # 检查接收者ID是否匹配
-            if subscriber_id == message.receiver_id:
+            if subscriber_id == message.Receiver_id:
                 # 发送消息给匹配的接收者，不检查类别
                 subscriber.receive_message(message)
                 target_found = True

@@ -409,12 +409,7 @@ class TrafficManager:
                 continue
             
             # 7.27：添加边界检查
-            trajectory = self.lastseen_vehicles[vehicle_id].trajectory
-            if trajectory is None:
-                history_tracks[vehicle_id] = []
-                continue
-                
-            trajectory_states = trajectory.states
+            trajectory_states = self.lastseen_vehicles[vehicle_id].trajectory.states
             start_idx = min(self.time_step, len(trajectory_states))
             end_idx = min(current_time_step, len(trajectory_states))
             
@@ -515,8 +510,7 @@ class TrafficManager:
             if len(vehicle["xQ"]) == 0 or len(vehicle["laneIDQ"]) == 0 or len(vehicle["yQ"]) == 0:
                 continue
             # 如果车辆已出现在场景中，且之前有轨迹信息
-            if vehicle["id"] in self.lastseen_vehicles and \
-                self.lastseen_vehicles[vehicle["id"]].trajectory is not None and \
+            if vehicle["id"] in self.lastseen_vehicles  and \
                 len(self.lastseen_vehicles[vehicle["id"]].trajectory.states)> through_timestep:
                 last_state = self.lastseen_vehicles[
                     vehicle["id"]].trajectory.states[through_timestep]
@@ -592,7 +586,7 @@ class TrafficManager:
         ego_id = ego_info["id"]
         if ego_id in self.lastseen_vehicles:
             # 自车已存在
-            if self.lastseen_vehicles[ego_id].trajectory is not None and len(self.lastseen_vehicles[ego_id].trajectory.states) > through_timestep:
+            if len(self.lastseen_vehicles[ego_id].trajectory.states) > through_timestep:
                 # 有足够的轨迹状态，使用create_vehicle_lastseen
                 last_state = self.lastseen_vehicles[ego_id].trajectory.states[through_timestep]
                 ego_car = create_vehicle_lastseen(
