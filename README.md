@@ -1,4 +1,5 @@
-# AutonomousTransportationSystem-TrafficSemanticRepresentationLanguage-TSRL-SimulationPlatform项目概览 
+# EN-AutonomousTransportationSystem-TrafficSemanticRepresentationLanguage-TSRL-SimulationPlatform
+# CN-自主式交通系统-交通语义表示语言-TSRL-仿真平台
 ## 项目简介
 
 本项目是基于LimSim的自主交通语义交互仿真平台(Autonomous Transportation Semantic Interaction Simulation Platform, ATSISP)。它扩展了LimSim的功能，加入了车辆间以及车辆与路侧单元(RSU)的语义通信交互能力，并集成了基于交通语义表示语言(TSRL)的推理引擎，以模拟和分析交通场景下的复杂交互行为。
