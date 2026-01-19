@@ -1,0 +1,11 @@
+SelfVehicle(HV);
+IsJunction(J4);
+HasNextJunction(HV,J4);
+EmergencyStation(M2);
+EmergencyStation(M2);
+StopAt(M2,E0);
+HasNextJunction(HV,J4);
+
+Congestion(y):-StopAt(x,y),IsJunction(y);//x停车在y，y是交叉口
+
+ASK Congestion(y);

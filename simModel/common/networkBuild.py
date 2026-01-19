@@ -4,6 +4,7 @@
 
 # for: NetworkBuild with Frenet
 from __future__ import annotations
+from pdb import run
 from utils.simBase import CoordTF, deduceEdge, MapCoordTF
 from utils.cubic_spline import Spline2D
 from utils.roadgraph import Junction, Edge, NormalLane, OVERLAP_DISTANCE, JunctionLane, TlLogic
@@ -352,6 +353,7 @@ class NetworkBuild:
                         rsu = RSU(rsu_id)
                         rsu.x=rsu_x
                         rsu.y=rsu_y
+                        rsu.plot_detect_length=float(child.attrib['plot_detect_length'])
                     elif child.tag == 'laneAreaDetector' and child.attrib.get('id', '').startswith('RSU_'):
                         # 解析RSU的实际探测能力
                         rsu_detector_id = child.attrib['id']
@@ -595,18 +597,14 @@ class NetworkBuild:
         rsu = self.getRSU(rsu_id)
         if not rsu:
             return
-        
         # RSU中心坐标
         center_x, center_y = rsu.x, rsu.y
-        
         # RSU尺寸
         length = rsu.length
         width = rsu.width
-        
         # 计算RSU的四个角点（矩形）
         half_length = length / 2
         half_width = width / 2
-        
         # 创建RSU的矩形顶点
         vertices = [
             (center_x - half_length, center_y - half_width),
@@ -614,10 +612,8 @@ class NetworkBuild:
             (center_x + half_length, center_y + half_width),
             (center_x - half_length, center_y + half_width)
         ]
-        
         # 转换坐标到dearpygui坐标系
         vertices_tf = [ctf.dpgCoord(v[0], v[1], ex, ey) for v in vertices]
-        
         # 绘制RSU主体（蓝色矩形）
         dpg.draw_polygon(
             vertices_tf,
@@ -626,7 +622,6 @@ class NetworkBuild:
             fill=(0, 100, 255, 100),  # 半透明蓝色填充
             parent=node
         )
-        
         # 绘制RSU中心点
         center_tf = ctf.dpgCoord(center_x, center_y, ex, ey)
         dpg.draw_circle(
@@ -637,9 +632,8 @@ class NetworkBuild:
             fill=(0, 100, 255),
             parent=node
         )
-        
         # 绘制RSU检测范围（圆形）
-        detect_radius = rsu.detectors[0].detectlenth
+        detect_radius = rsu.plot_detect_length
         dpg.draw_circle(
             center_tf,
             radius=detect_radius * ctf.zoomScale,
@@ -647,7 +641,6 @@ class NetworkBuild:
             thickness=1,
             parent=node
         )
-        
         # 添加RSU ID标签
         label_pos = (center_tf[0], center_tf[1] - 15)
         dpg.draw_text(
@@ -663,10 +656,8 @@ class NetworkBuild:
         rsu = self.rsus.get(rsu_id)
         if not rsu:
             return
-        
         # 直接使用地图坐标
         center_x, center_y = ctf.dpgCoord(rsu.x, rsu.y)
-        
         # RSU尺寸
         length = rsu.length
         width = rsu.width

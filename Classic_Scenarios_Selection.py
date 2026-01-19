@@ -17,30 +17,37 @@ import sys
 import os
 import time
 import argparse
+
 # 定义项目根目录
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# 导入地址配置文件
+from utils.load_config import load_config
+loc_config = load_config("loc_config.yaml")
+
 # 将日志文件保存到DEBUG_TSRL目录
-log_dir = "DEBUG_TSRL"
+log_dir = loc_config["LOC_DEBUG"]
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 log_file_path = os.path.join(log_dir, "app_debug_Classic_Scenarios.log")
 log = logger.setup_app_level_logger(file_name=log_file_path)
-# 导入地址配置文件
-from utils.load_config import load_config
-loc_config = load_config("E:\Analysis and Inference\Analysis and Inference\Autonomous Transportation Semantic Interaction Simulation Platform-2025.12-结题联合仿真 - under version\ATSISP\loc_config.yaml")
+
 # 场景名称常量
 SCENARIO_FORWARD_COLLISION = "Forward_Collision_Warning"
 SCENARIO_HUMAN_VEHICLE = "Human_Vehicle_Interacting"
 SCENARIO_VEHICLE_RSU = "Vehicle_RSU_Interacting"
 SCENARIO_VEHICLE_VEHICLE = "Vehicle_Vehicle_Interacting"
-# 各场景对应的主车I
+COLLABORATION_SCENARIO = "Vehicle_Vehicle_Collaboration"
+
+# 各场景对应的主车ID
 SCENARIO_EGO_IDS = {
     SCENARIO_FORWARD_COLLISION: "1",  # 前向碰撞警告场景主车ID
     SCENARIO_HUMAN_VEHICLE: "0",   # 人车交互场景主车ID
     SCENARIO_VEHICLE_RSU: "0",     # 车与RSU交互场景主车ID
-    SCENARIO_VEHICLE_VEHICLE: "0"    # 车车交互场景主车ID
+    SCENARIO_VEHICLE_VEHICLE: "0",    # 车车交互场景主车ID
+    COLLABORATION_SCENARIO: "HV"    # 车车合作场景主车ID
 }
-# 合并四个场景的路网文件路径
+# 合并五个场景的路网文件路径
 file_paths = {
     # 前向碰撞警告场景
     SCENARIO_FORWARD_COLLISION: (
@@ -62,6 +69,12 @@ file_paths = {
     SCENARIO_VEHICLE_VEHICLE: (
         "networkFiles/Vehicle_Vehicle_Interacting/Vehicle_Vehicle_Interacting.net.xml",
         "networkFiles/Vehicle_Vehicle_Interacting/Vehicle_Vehicle_Interacting.rou.xml"
+    ),
+    # 车车合作场景
+    COLLABORATION_SCENARIO: (
+        "networkFiles/Vehicle_Vehicle_Collaboration/Vehicle_Vehicle_Collaboration.net.xml",
+        "networkFiles/Vehicle_Vehicle_Collaboration/Vehicle_Vehicle_Collaboration.rou.xml",
+        "networkFiles/Vehicle_Vehicle_Collaboration/Vehicle_Vehicle_Collaboration.add.xml"
     )
 }
 
@@ -158,7 +171,6 @@ def run_model(
                     else:
                         # 处理其他情况
                         continue
-                    
                     # 如果自车开始行驶且场景存在
                     if model.tpStart and roadgraph:
                         log.info(f"Frame {model.timeStep}: Calling planner.plan with {len(vehicles)} vehicles and {len(facilities)} facilities")
@@ -200,10 +212,11 @@ def main():
             SCENARIO_FORWARD_COLLISION,
             SCENARIO_HUMAN_VEHICLE,
             SCENARIO_VEHICLE_RSU,
-            SCENARIO_VEHICLE_VEHICLE
+            SCENARIO_VEHICLE_VEHICLE,
+            COLLABORATION_SCENARIO
         ],
-        default=SCENARIO_VEHICLE_VEHICLE,
-        help='选择要运行的场景 (默认: 车车交互场景)'
+        default=COLLABORATION_SCENARIO,
+        help='选择要运行的场景 (默认: 车车合作场景)'
     )
     parser.add_argument(
         '--ego-id',
@@ -227,9 +240,7 @@ def main():
         action='store_true',
         help='清理消息文件'
     )
-    
     args = parser.parse_args()
-    
     try:
         # 获取场景对应的路网文件
         if args.scenario not in file_paths:

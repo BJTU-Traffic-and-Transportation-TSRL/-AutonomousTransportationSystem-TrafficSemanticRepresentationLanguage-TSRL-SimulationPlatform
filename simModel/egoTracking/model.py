@@ -98,13 +98,13 @@ class Model:
         self.vehicles: List[Vehicle] = []
         # 7.20 添加停车解析内容
         self.vehicles_with_stops = read_stop_info.extract_stop_info(self.rouFile)        
-
-        self.createDatabase()
+        self.createDatabase() # 创建数据库
         self.simDescriptionCommit(simNote)
         self.dataQue = Queue()
         self.createTimer()
-        
-        self.nb = NetworkBuild(self.dataBase, self.netFile, self.obsFile, self.addFile)
+        # 使用完整的数据库路径（包含Database/前缀）传递给NetworkBuild类
+        db_path = os.path.join("Database", self.dataBase)
+        self.nb = NetworkBuild(db_path, self.netFile, self.obsFile, self.addFile)
         self.nb.getData()
         self.nb.buildTopology()
 
@@ -540,8 +540,7 @@ class Model:
                              fill=(75, 207, 250, 100), # 雷达图填充颜色
                              thickness=5, # 雷达图轮廓宽度
                              parent=radarNode) # 在radarNode上进行绘画
-    # 评估信息坐标转换，为了将评估数据的极坐标转换为GUI界面中窗口的屏幕坐标系统，以在
-    # 屏幕上进行图标绘制
+    # 评估信息坐标转换，为了将评估数据的极坐标转换为GUI界面中窗口的屏幕坐标系统，以在屏幕上进行图标绘制
     def _evaluation_transform_coordinate(self, points: List[float],
                                          scale: float) -> List[List[float]]:
         # 检查sEvaluation窗口是否存在
@@ -730,9 +729,9 @@ class Model:
             dpg.delete_item("simInfo", children_only=True)
             dpg.delete_item("radarPlot", children_only=True)
             self.ms.updateScene(self.dataQue, self.timeStep) # 更新获取的场景信息
-            self.ms.updateSurroudVeh() # 定义了AOI内车辆、AOI外但是场景内车辆、场景外车辆
-
             self.getVehInfo(self.ego) # 获取ego主车的信息
+            self.updateVeh() # 更新车辆状态，确保laneIDQ等队列有值
+            self.ms.updateSurroudVeh() # 定义了AOI内车辆、AOI外但是场景内车辆、场景外车辆
             if self.ms.currVehicles:
                 for v in self.ms.currVehicles.values():
                     self.getVehInfo(v) # 获取场景内周边车辆的信息

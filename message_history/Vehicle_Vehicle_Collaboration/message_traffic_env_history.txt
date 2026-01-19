@@ -1,0 +1,8 @@
+SelfVehicle(HV);
+IsJunction(J4);
+HasNextJunction(HV,J4);
+EmergencyStation(M2);
+EmergencyStation(M2);
+StopAt(M2,E0);
+HasNextJunction(HV,J4);
+EmergencyStation(M2);

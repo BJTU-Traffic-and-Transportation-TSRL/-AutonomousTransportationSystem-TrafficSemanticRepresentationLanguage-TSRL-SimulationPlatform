@@ -114,7 +114,7 @@ class MovingScene:
                 for il in jinfo.JunctionLanes:
                     nextStepVehicles = nextStepVehicles | set(
                         traci.lane.getLastStepVehicleIDs(il)
-                    )
+                    ) # 获取该路口所有道路的车辆id，并入下一个时间步的车辆集合
 
         newVehicles = nextStepVehicles - self.currVehicles.keys() # 新加入场景的车辆集合：当前帧有但是上一帧没有的车辆
         for nv in newVehicles:
@@ -128,8 +128,11 @@ class MovingScene:
         # 检测AOI内的RSU
         rsuInAoI = {}  # 9.12 AOI内的RSU集合
         for rsu_id, rsu in self.RSUs.items():
-            if rsu and rsu.isInAoI(self.ego.laneID,self.ego.lanePos,self.ego.deArea):
+            if rsu and self.ego.laneID:
+               if rsu.isInAoI(self.ego.laneID,self.ego.lanePos,self.ego.deArea):
                 rsuInAoI[rsu_id] = rsu
+            else:
+                continue
         
         for vk, vv in self.currVehicles.items(): #vk: 车辆id, vv: 车辆实例
             if vk == self.ego.id:

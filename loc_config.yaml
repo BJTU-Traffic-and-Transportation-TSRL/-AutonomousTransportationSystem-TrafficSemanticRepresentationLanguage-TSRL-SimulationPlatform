@@ -4,6 +4,9 @@ LOC_TKINTER: tkinter_scenario_selector.py
 # Classic_Scenarios_Selection.py 地址
 LOC_CLASSIC_SCENARIOS: Classic_Scenarios_Selection.py
 
+# debug地址
+LOC_DEBUG: "DEBUG_TSRL"
+
 # Railway Transportation System - Model1 地址
 LOC_RAILWAY_MODEL1: Railway Transportation System\Model1\Model1.alp
 
