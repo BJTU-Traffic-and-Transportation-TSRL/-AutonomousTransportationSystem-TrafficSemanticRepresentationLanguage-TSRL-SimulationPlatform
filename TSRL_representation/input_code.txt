@@ -1,0 +1,1 @@
+Let CheckChangeLane(Car_1):-IsSelfVehicle(Car_1) ∧ HasSituation(Car_0,EmergencyStop);
