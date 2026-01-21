@@ -101,6 +101,10 @@ TSRL是程序的主类，包含以下静态方法：
 ### Tokentype.py
 标记类型定义，包含TSRL语言中所有标记的类型枚举。
 
+### txt_representation.py
+某一语句的词法分析及语法分析可视化。
+- 将某一语句词法解析对应的标记(token)流和语法解析对应的抽象语法树(AST)的结果输出在instruction_input.txt
+
 ## 工作流程
 
 1. 从输入文件读取TSRL源代码

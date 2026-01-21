@@ -26,6 +26,8 @@ class StmtVisitor(ABC):
 
     def visitPrintStmt(self, stmt): #stmt:Print
         pass
+    def visitTellStmt(self, stmt): #stmt:Print
+        pass
 
 
 
@@ -56,3 +58,10 @@ class Print(Stmt):
 
     def accept(self, visitor: StmtVisitor):
         return visitor.visitPrintStmt(self)
+
+class Tell(Stmt):
+    def __init__(self, expression:Expr):
+        self.expression = expression
+
+    def accept(self, visitor: StmtVisitor):
+        return visitor.visitTellStmt(self)

@@ -28,6 +28,8 @@ class TokenType(Enum):  #实际上相当于字典
     LESS_EQUAL = 'LESS_EQUAL'
     IMPLICATE = "IMPLICATE" #蕴含:-
     ASK = "ASK"#提问 ?-
+    LET = "LET"
+    TELL="TELL"
 
     # 字面量
     IDENTIFIER = 'IDENTIFIER'

@@ -225,5 +225,7 @@ keywords = {
     "true":   TokenType.TRUE,
     # "var":    TokenType.VAR,
     "ASK" : TokenType.ASK,
-    'PRINT' :TokenType.PRINT
+    'PRINT' :TokenType.PRINT,
+    'Let':TokenType.LET,
+    'Tell':TokenType.TELL,
 }

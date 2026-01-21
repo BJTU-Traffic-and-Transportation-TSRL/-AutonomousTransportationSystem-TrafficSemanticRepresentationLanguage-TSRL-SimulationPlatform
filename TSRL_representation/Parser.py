@@ -44,11 +44,16 @@ class Parser:
             return None
 
     def __statement__(self) ->Stmt.Stmt:
+        if self.match(TokenType.LET):  # 新增Let语句匹配
+            return self.__LetStatement__()
         if self.match(TokenType.ASK):
             return self.__ASKStatement__()
         if self.match(TokenType.PRINT):
             return self.__printStatement__()
+        if self.match(TokenType.TELL):  # 新增 Tell 语句匹配
+            return self.__TellStatement__()
         return self.__expressionStatement__()
+
 
     def __ASKStatement__(self) ->Stmt.Stmt:
         value = self.__expression__()
@@ -62,6 +67,37 @@ class Parser:
         self.consume(TokenType.SEMICOLON, "Expect ';' after value.")
         return Stmt.Print(value)
 
+    def __LetStatement__(self) -> Stmt.Stmt:
+        # 解析谓词名（CheckChangeLane）
+        pred_name = self.consume(TokenType.IDENTIFIER, "Expect predicate name after 'Let'.")
+        # 解析左括号
+        self.consume(TokenType.LEFT_PAREN, "Expect '(' after predicate name.")
+        # 解析参数（Car_1）
+        params = []
+        if not self.check(TokenType.RIGHT_PAREN):
+            while True:
+                param = self.consume(TokenType.IDENTIFIER, "Expect parameter name in predicate.")
+                params.append(param)
+                if not self.match(TokenType.COMMA):
+                    break
+        # 解析右括号
+        self.consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
+        # 解析蕴含符 :-
+        impl_token = self.consume(TokenType.IMPLICATE, "Expect ':-' after predicate parameters.")
+        # 解析蕴含的表达式（IsSelfVehicle(Car_1) ∧ HasSituation(Car_0,EmergencyStop)）
+        impl_expr = self.__expression__()
+        # 解析分号结束
+        self.consume(TokenType.SEMICOLON, "Expect ';' after let statement.")
+
+        # 构造Let语句（复用Implication表达式封装）
+        pred_expr = Expr.Predicate(pred_name.lexeme, pred_name, *params)
+        let_expr = Expr.Implication(impl_token, impl_expr, pred_expr)
+        return Stmt.Expression(let_expr)
+
+    def __TellStatement__(self) -> Stmt.Stmt:
+        value = self.__expression__()
+        self.consume(TokenType.SEMICOLON, "Expect ';' after Tell statement.")
+        return Stmt.Tell(value)
 
     def __expressionStatement__(self) ->Stmt.Stmt:
         expr = self.__expression__()
