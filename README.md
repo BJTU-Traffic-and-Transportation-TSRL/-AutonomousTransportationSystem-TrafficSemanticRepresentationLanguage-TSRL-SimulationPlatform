@@ -106,7 +106,7 @@ pip install -r requirements.txt`
 
         在新弹出的窗口中，用户可以选择不同的场景类型，如**典型交通场景**、**自定义交通场景**等。
 
-        ![roadsys_scenario](assets_new/RoadSys_Transportation_Senarios.png)
+        ![roadsys_scenario](assets_new/Roadsys_Transportation_Senarios.png)
 
         * 典型交通场景
         
