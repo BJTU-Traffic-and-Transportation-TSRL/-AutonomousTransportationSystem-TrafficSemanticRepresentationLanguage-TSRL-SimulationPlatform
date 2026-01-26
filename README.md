@@ -83,9 +83,9 @@
 
             2. 打开已经安装好的Anylogic，找到”**面板（Palette）**“>>左下角的“+”>>**管理库……**
 
-                ![Pypeline2Anylogic_step1](assets_new\Pypeline2Anylogic_1.png)
+                ![Pypeline2Anylogic_step1](assets_new/Pypeline2Anylogic_1.png)
             3. 点击“**添加**”，找到下载好的Pypeline.jar文件，添加到Anylogic中
-                ![Pypeline2Anylogic_step2](assets_new\Pypeline2Anylogic_2.png)
+                ![Pypeline2Anylogic_step2](assets_new/Pypeline2Anylogic_2.png)
             4. 点击“**确定**”，Pypeline库就会被添加到Anylogic中
 2.  安装所需依赖: 
 
@@ -98,7 +98,7 @@ pip install -r requirements.txt`
 
 1.  **交通语义交互场景选择界面**: 双击批处理文件`Start.bat`，即可打开交通语义交互场景选择界面。
 
-    ![scenario_selector](assets_new\Start.png)
+    ![scenario_selector](assets_new/Start.png)
 2.  **选择所需的交通方式**: 点击场景选择器中的交通方式按钮，即可启动对应的交通语义交互场景。
     1. 道路交通场景
 
@@ -106,7 +106,7 @@ pip install -r requirements.txt`
 
         在新弹出的窗口中，用户可以选择不同的场景类型，如**典型交通场景**、**自定义交通场景**等。
 
-        ![roadsys_scenario](assets_new\RoadSys_Transportation_Senarios.png)
+        ![roadsys_scenario](assets_new/RoadSys_Transportation_Senarios.png)
 
         * 典型交通场景
         
@@ -114,14 +114,14 @@ pip install -r requirements.txt`
             
             在新弹出的窗口中，用户可以选择不同的典型交通场景，如**前向碰撞预警场景**、**车辆-RSU交互场景**等。
             
-            ![typical_scenario](assets_new\typical_roadway_senarios.png)
+            ![typical_scenario](assets_new/typical_roadway_senarios.png)
     2. 轨道交通场景
         
         点击**轨道交通场景**按钮，即可启动轨道交通场景的仿真。
         
         在新弹出的窗口中，用户可以选择不同的轨道交通场景，具体的场景介绍可以在弹窗文字中进行查看。
         
-        ![railway_scenario](assets_new\railway_senarios.png)
+        ![railway_scenario](assets_new/railway_senarios.png)
     3. 水运交通场景
         
         点击**水运交通场景**按钮，即可启动水运交通场景的仿真。
