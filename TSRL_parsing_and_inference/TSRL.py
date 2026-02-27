@@ -53,8 +53,10 @@ class TSRL:
 
     @staticmethod
     def __run(source):
-        scanner = Scanner(source)
-        tokens = scanner.scan_tokens()
+        scanner = Scanner(source) # 实例化词法解析器Scanner类
+        tokens = scanner.scan_tokens() # 调用词法解析器的scan_tokens()方法，返回tokens列表
+        # 2026.2.27 打印tokens列表
+        print(tokens)
         parser = Parser(tokens)
         statements = parser.parse() 
         
@@ -68,6 +70,6 @@ class TSRL:
 """
 修改TSRL.main()，使其接收输入和输出文件路径作为参数
 """
-# input_file = "TSRL_representation\Infer_input\input_1.txt"
-# output_file = "TSRL_representation\Infer_output\output.txt"
-# TSRL.main(input_file, output_file)
+input_file = "TSRL_parsing_and_inference\Infer_input\input_1.txt"
+output_file = "TSRL_parsing_and_inference\Infer_output\output.txt"
+TSRL.main(input_file, output_file)
