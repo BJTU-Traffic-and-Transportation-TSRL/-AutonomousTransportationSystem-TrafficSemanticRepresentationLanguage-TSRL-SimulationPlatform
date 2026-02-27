@@ -55,17 +55,18 @@ class TSRL:
     def __run(source):
         scanner = Scanner(source) # 实例化词法解析器Scanner类
         tokens = scanner.scan_tokens() # 调用词法解析器的scan_tokens()方法，返回tokens列表
-        # 2026.2.27 打印tokens列表
-        print(tokens)
-        parser = Parser(tokens)
-        statements = parser.parse() 
+        # 2026.2.27 分行打印tokens列表
+        # for token in tokens:
+        #     print(token)
+        parser = Parser(tokens) # 实例化语法解析器Parser类
+        statements = parser.parse() # 调用语法解析器的parse()方法，返回tokens形成的语句列表对应的语句类型(statements)列表
         
         # 使用类级别的TSRL_interpreter
         # 如果没有设置输出文件，则使用默认路径
         if not TSRL.TSRL_interpreter.output_file:
             output_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Infer_output", "output.txt")
             TSRL.TSRL_interpreter.set_output_file(output_file_path)
-        TSRL.TSRL_interpreter.interpret(statements)
+        TSRL.TSRL_interpreter.interpret(statements) # 调用解释器的interpret()方法，对statements列表中的语句进行解释执行
 
 """
 修改TSRL.main()，使其接收输入和输出文件路径作为参数
