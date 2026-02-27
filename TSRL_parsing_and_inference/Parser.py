@@ -23,7 +23,7 @@ class Parser:
     def parse(self)->List[Stmt.Stmt]:
         statements: List[Stmt.Stmt] = []
         while not self.is_at_end():
-            decl = self.__declaration__()
+            decl = self.__declaration__() # 解析语句类型，进行语句预声明
             if decl is not None:
                 statements.append(decl)
 
@@ -34,11 +34,11 @@ class Parser:
         #     return None
 
     def __expression__(self) -> Expr.Expr:
-        return self.__implicate__()
+        return self.__implicate__() # 调用__implicate__()方法，返回Expr.Expr对象
 
     def __declaration__(self) ->Stmt.Stmt:
         try:#暂无声明项
-            return self.__statement__()
+            return self.__statement__() # 解析语句，进行语句声明
         except ParseError as error:
             self.synchronize()
             return None
@@ -106,7 +106,7 @@ class Parser:
 
 
     def __implicate__(self)-> Expr.Expr:
-        predicate = self.__Or__()
+        predicate = self.__Or__() # 调用__Or__()方法，返回Expr.Expr对象
         if self.match(TokenType.IMPLICATE):
             op = self.previous()
             value = self.__Or__()
@@ -121,7 +121,7 @@ class Parser:
         return predicate
 
     def __Or__(self):
-        expr = self.__And__()
+        expr = self.__And__() # 调用__And__()方法，返回Expr.Expr对象
         while self.match(TokenType.OR):
             operator = self.previous()
             right = self.__And__()
@@ -129,7 +129,7 @@ class Parser:
         return expr
 
     def __And__(self):
-        expr = self.__equality__()
+        expr = self.__equality__() 
         while self.match(TokenType.AND):
             operator = self.previous()
             right = self.__equality__()
@@ -184,13 +184,13 @@ class Parser:
     def __predicate__(self)-> Expr.Expr:
         predicate = self.__primary__()#这里做一个判定，标识符有效性
         args = []
-        if self.match(TokenType.LEFT_PAREN):
-            if not self.check(TokenType.RIGHT_PAREN):
+        if self.match(TokenType.LEFT_PAREN): # 解析左括号
+            if not self.check(TokenType.RIGHT_PAREN): # 检查是否到达右括号
                 while (True):
                     if len(args) >= 255:
                         self.error(self.peek(), "Can't have more than 255 parameters.")
                     args.append(self.__predicate__())
-                    if not self.match(TokenType.COMMA):
+                    if not self.match(TokenType.COMMA): # 检查是否到达逗号
                         break
             self.consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
 
@@ -208,10 +208,10 @@ class Parser:
         if self.match(TokenType.NUMBER, TokenType.STRING):
             return Expr.Constant(self.previous().literal,self.previous())
         if self.match(TokenType.IDENTIFIER):
-            if self.previous().lexeme[0].islower() or self.previous().lexeme=="_":
+            if self.previous().lexeme[0].islower() or self.previous().lexeme=="_": # 标识符以小写字母或下划线开头（此处因为match方法返回的是True，所以current+1，指向了下一个字符，便使用previous()方法获取到了原先标识符的第一个字符）
                 return Expr.Variable(self.previous().lexeme,self.previous())
-            elif self.previous().lexeme[0].isupper():
-                return Expr.Constant(self.previous().lexeme,self.previous())
+            elif self.previous().lexeme[0].isupper(): # 标识符以大写字母开头（使用previous的原因同上）
+                return Expr.Constant(self.previous().lexeme,self.previous()) # 常量（大写字母开头的标识符）
 
         # if self.match(TokenType.LEFT_PAREN):
         #     expr = self.__expression__()
@@ -260,9 +260,9 @@ class Parser:
         return e
         #raise SyntaxError(f"[line {token.line}] Error at '{token.lexeme}': {message}")
 
-    def consume(self, type: TokenType, message: str) -> Token:
+    def consume(self, type: TokenType, message: str) -> Token: # 消费指定类型的token，若不是则报错
         if self.check(type):
-            return self.advance()
+            return self.advance() # current+1
         raise  self.error(self.peek(), message)
 
     def synchronize(self):
