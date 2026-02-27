@@ -31,13 +31,13 @@ class StmtVisitor(ABC):
 
 
 
-class Stmt:
+class Stmt: # 语句类型
     #Abstract base class for all AST nodes.
     def accept(self, visitor: StmtVisitor):
         pass
 
 
-class Expression(Stmt):
+class Expression(Stmt): # 表达式语句类型
     def __init__(self, expression: Expr):
         self.expression = expression
 
