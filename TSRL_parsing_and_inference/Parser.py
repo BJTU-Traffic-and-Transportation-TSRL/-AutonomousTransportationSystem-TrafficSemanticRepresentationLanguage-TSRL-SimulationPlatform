@@ -18,10 +18,11 @@ class ParseError(Exception):
 class Parser:
     def __init__(self, tokens: List[Token]):
         self.tokens = tokens
-        self.current = 0
+        self.current = 0 # 当前解析的token索引
 
     def parse(self)->List[Stmt.Stmt]:
-        statements: List[Stmt.Stmt] = []
+        # 解析token流，生成抽象语法树（AST）
+        statements: List[Stmt.Stmt] = [] # 初始化语法类型列表
         while not self.is_at_end():
             decl = self.__declaration__() # 解析语句类型，进行语句预声明
             if decl is not None:
@@ -34,9 +35,10 @@ class Parser:
         #     return None
 
     def __expression__(self) -> Expr.Expr:
-        return self.__implicate__() # 调用__implicate__()方法，返回Expr.Expr对象
+        return self.__implicate__() # 调用__implicate__()方法，解析蕴含表达式
 
     def __declaration__(self) ->Stmt.Stmt:
+        # 声明语句解析
         try:#暂无声明项
             return self.__statement__() # 解析语句，进行语句声明
         except ParseError as error:
@@ -44,6 +46,7 @@ class Parser:
             return None
 
     def __statement__(self) ->Stmt.Stmt:
+        # 根据 token 类型解析不同类型的语句
         if self.match(TokenType.LET):  # 新增Let语句匹配
             return self.__LetStatement__()
         if self.match(TokenType.ASK):
@@ -106,7 +109,8 @@ class Parser:
 
 
     def __implicate__(self)-> Expr.Expr:
-        predicate = self.__Or__() # 调用__Or__()方法，返回Expr.Expr对象
+        # 蕴含表达式解析
+        predicate = self.__Or__() # 调用__Or__()方法，解析析取表达式
         if self.match(TokenType.IMPLICATE):
             op = self.previous()
             value = self.__Or__()
@@ -121,7 +125,8 @@ class Parser:
         return predicate
 
     def __Or__(self):
-        expr = self.__And__() # 调用__And__()方法，返回Expr.Expr对象
+        # 析取表达式解析
+        expr = self.__And__() # 调用__And__()方法，解析合取表达式
         while self.match(TokenType.OR):
             operator = self.previous()
             right = self.__And__()
@@ -129,7 +134,8 @@ class Parser:
         return expr
 
     def __And__(self):
-        expr = self.__equality__() 
+        # 合取表达式解析
+        expr = self.__equality__() # 调用__equality__()方法，解析等值表达式
         while self.match(TokenType.AND):
             operator = self.previous()
             right = self.__equality__()
@@ -139,7 +145,8 @@ class Parser:
 
 #等值运算
     def __equality__(self) -> Expr:
-        expr = self.__comparison__()
+        # 等值表达式解析
+        expr = self.__comparison__() # 调用__comparison__()方法，解析比较表达式
         while self.match(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL):
             operator = self.previous()
             right = self.__comparison__()
@@ -148,7 +155,8 @@ class Parser:
 
 #比较运算
     def __comparison__(self) -> Expr:
-        expr = self.__term__()
+        # 比较表达式解析
+        expr = self.__term__() # 调用__term__()方法，解析项表达式
         while self.match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL):
              operator = self.previous()
              right = self.__term__()
@@ -157,7 +165,8 @@ class Parser:
 
 #加减运算
     def __term__(self) -> Expr:
-        expr = self.__factor__()
+        # 项表达式解析
+        expr = self.__factor__() # 调用__factor__()方法，解析因子表达式
         while self.match(TokenType.MINUS, TokenType.PLUS):
             operator = self.previous()
             right = self.__factor__()
@@ -166,23 +175,26 @@ class Parser:
 
 #乘除运算
     def __factor__(self) -> Expr:
-        expr = self.__unary__()
+        # 因子表达式解析
+        expr = self.__unary__() # 调用__unary__()方法，解析一元表达式
         while self.match(TokenType.SLASH, TokenType.STAR):
             operator = self.previous()
             right = self.__factor__()
             expr = Expr.Binary(expr, operator.lexeme, operator, right)
         return expr
 
-#二元运算
+#一元运算
     def __unary__(self) -> Expr:
+        # 一元表达式解析
         if self.match(TokenType.BANG, TokenType.MINUS):
             operator = self.previous()
             right = self.__unary__()
             return Expr.Unary(operator, right)
-        return self.__predicate__()
+        return self.__predicate__() # 调用__predicate__()方法，解析谓词表达式
 
     def __predicate__(self)-> Expr.Expr:
-        predicate = self.__primary__()#这里做一个判定，标识符有效性
+        # 谓词表达式解析
+        predicate = self.__primary__() # 调用__primary__()方法，解析基本表达式
         args = []
         if self.match(TokenType.LEFT_PAREN): # 解析左括号
             if not self.check(TokenType.RIGHT_PAREN): # 检查是否到达右括号
@@ -199,6 +211,7 @@ class Parser:
 
 #最顶级“原子”
     def __primary__(self):
+        # 基本表达式解析（常量、变量、标识符等）
         if self.match(TokenType.FALSE):
             return  Expr.Constant('False',self.previous())
         if self.match(TokenType.TRUE):

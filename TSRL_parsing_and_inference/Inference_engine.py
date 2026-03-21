@@ -122,9 +122,9 @@ def is_definite_clause(s):
     """
     判断是否为限定子句，若是，则返回True
     """
-    if is_symbol(s.op):
+    if is_symbol(s.op): # 若为符号开头，则为一阶确定子句
         return True
-    elif s.op == '==>' or s.op == ':-':
+    elif s.op == '==>' or s.op == ':-': # 若为蕴含表达式或负蕴含表达式
         antecedent, consequent = s.args
         return is_symbol(consequent.op) and all(is_symbol(arg.op) for arg in conjuncts(antecedent))
     else:
@@ -341,7 +341,7 @@ class FolKB(KB):
 
     #只接受一阶确定子句
     def tell(self, sentence):
-        if is_definite_clause(sentence):
+        if is_definite_clause(sentence): # 检查是否为一阶确定子句
             self.clauses.append(sentence)
         else:
             # raise Exception('Not a definite clause: {}'.format(sentence))

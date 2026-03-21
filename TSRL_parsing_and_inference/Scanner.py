@@ -26,7 +26,7 @@ class Scanner:
         while not self.is_at_end():
             # We are at the beginning of the next lexeme.
             self.start = self.current
-            self.scan_token()
+            self.scan_token() # 对于每个字符，调用scan_token()方法进行词法分析
         
         self.tokens.append(Token(TokenType.EOF, '', None, self.line))
         return self.tokens

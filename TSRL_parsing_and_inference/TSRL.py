@@ -24,16 +24,15 @@ class TSRL:
         :param output_file: 输出文件路径（可选）
         """
         if output_file:
-            # 设置输出文件路径
-            TSRL.TSRL_interpreter.set_output_file(output_file)
-        TSRL.__run_file(input_file)
+            TSRL.TSRL_interpreter.set_output_file(output_file) # 设置输出文件路径
+        TSRL.__run_file(input_file) # 读取输入文件内容
 
     @staticmethod
     def __run_file(file_path):
         try:
             with open(file_path, 'rb') as file:
                 bytes_data = file.read()
-            TSRL.__run(bytes_data.decode('utf-8'))  
+            TSRL.__run(bytes_data.decode('utf-8')) # 执行处理
             if hadError: sys.exit(65)
         except IOError as e:
             print(f"An error occurred while reading the file: {e}")
@@ -56,11 +55,15 @@ class TSRL:
         scanner = Scanner(source) # 实例化词法解析器Scanner类
         tokens = scanner.scan_tokens() # 调用词法解析器的scan_tokens()方法，返回tokens列表
         # 2026.2.27 分行打印tokens列表
-        # for token in tokens:
-        #     print(token)
+        print("Tokens:\n")
+        for token in tokens:
+            print(token)
         parser = Parser(tokens) # 实例化语法解析器Parser类
         statements = parser.parse() # 调用语法解析器的parse()方法，返回tokens形成的语句列表对应的语句类型(statements)列表
-        
+        # 2026.3.19 分行打印AST列表
+        print("\nAST:\n")
+        for statement in statements:
+            print(f"statement_class:{statement.__class__}\nstatement_expression:{statement.expression}\nstatement_op:{statement.expression.op}\nstatement_token:{statement.expression.token}\n")
         # 使用类级别的TSRL_interpreter
         # 如果没有设置输出文件，则使用默认路径
         if not TSRL.TSRL_interpreter.output_file:
@@ -71,6 +74,6 @@ class TSRL:
 """
 修改TSRL.main()，使其接收输入和输出文件路径作为参数
 """
-input_file = "TSRL_parsing_and_inference\Infer_input\input_1.txt"
+input_file = "TSRL_parsing_and_inference\Infer_input\input_FCW.txt"
 output_file = "TSRL_parsing_and_inference\Infer_output\output.txt"
 TSRL.main(input_file, output_file)
