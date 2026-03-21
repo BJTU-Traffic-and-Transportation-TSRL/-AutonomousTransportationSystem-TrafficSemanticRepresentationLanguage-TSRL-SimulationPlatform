@@ -84,7 +84,7 @@ class Interpreter(Expr.ExprVisitor, Stmt.StmtVisitor):
         d={}
         if Dict is not False:
             for key, value in Dict.items():
-                if str(key)[:2] == "v_" and len(str(key))>9: #这里对于无关变量须在斟酌
+                if str(key)[:2] == "v_" and len(str(key))>9: #过滤掉内部变量，这里对于无关变量须在斟酌
                     pass
                 else:
                     d[str(key)]=str(value)

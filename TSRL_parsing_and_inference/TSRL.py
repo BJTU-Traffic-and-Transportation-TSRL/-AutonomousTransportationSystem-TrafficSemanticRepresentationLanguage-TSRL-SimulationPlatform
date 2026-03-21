@@ -74,6 +74,8 @@ class TSRL:
 """
 修改TSRL.main()，使其接收输入和输出文件路径作为参数
 """
-input_file = "TSRL_parsing_and_inference\Infer_input\input_FCW.txt"
-output_file = "TSRL_parsing_and_inference\Infer_output\output.txt"
-TSRL.main(input_file, output_file)
+if __name__ == "__main__":
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    input_file = os.path.join(base_dir, "Infer_input", "input_FCW.txt")
+    output_file = os.path.join(base_dir, "Infer_output", "output.txt")
+    TSRL.main(input_file, output_file)

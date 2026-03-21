@@ -132,11 +132,11 @@ def is_definite_clause(s):
 
 def parse_definite_clause(s):
     """解析限定子句，输出为体和头的各子式的列表"""
-    assert is_definite_clause(s)
-    if is_symbol(s.op):
-        return [], s
+    assert is_definite_clause(s) # 输入合法性检查：s必须是一个合法的限定子句，如果不是，程序会立刻抛出 AssertionError
+    if is_symbol(s.op): # 如果s.op是一个普通符号
+        return [], s # 前提为空，s为结论
     else:
-        antecedent, consequent = s.args
+        antecedent, consequent = s.args # 返回前提和结论
         return conjuncts(antecedent), consequent
 
 #输入子句，输出集合，集合中包含子句中的所有常量（非谓词）
@@ -191,13 +191,14 @@ def standardize_variables(sentence:Expr, dic=None):
     >>> from Tokentype import TokenType
     >>> standardize_variables(Predicate('male',None,Constant('Di',Token(TokenType.IDENTIFIER,'Di',None,0))))
     male(Di)
+    规则的变量标准化：把推理规则中的变量改成内部临时变量，避免和查询冲突。
     """
     if dic is None:
         dic = {}
-    if not isinstance(sentence, Expr):
+    if not isinstance(sentence, Expr): # 如果sentence不是表达式
         return sentence
     # elif is_var_symbol(sentence.op):
-    elif is_variable(sentence):
+    elif is_variable(sentence): # 如果sentence是变量
         if sentence in dic:
             return dic[sentence]
         else:
@@ -208,10 +209,11 @@ def standardize_variables(sentence:Expr, dic=None):
                          Token(sentence.token.type,'v_{}'.format(v_iden),sentence.token.literal,sentence.token.line))
             dic[sentence] = v
             return v
-    elif is_constant(sentence):
+    elif is_constant(sentence):# 如果sentence是常量
         return sentence
     else:
-        return Predicate(sentence.op, sentence.token, *[standardize_variables(a, dic) for a in sentence.args])
+        # 返回一个蕴含对象
+        return Predicate(sentence.op, sentence.token, *[standardize_variables(a, dic) for a in sentence.args]) 
 
 # standardize_variables.counter = itertools.count()
 generator = UniqueEightDigitGenerator()
@@ -278,6 +280,12 @@ def unify_mm(x, y, s={}):
     {x: 3}
     >>> unify_mm(Expr("x"), Expr("x"), {})
     {}
+
+    2026.3.21添加注释：
+    unify_mm(rhs, goal, theta)
+    e.g.:对rhs = Congestion(v_49812732)和goal = Congestion(y)做合一,得到初始替换:
+    {v_49812732: y}
+    意思是：规则头里的那个内部变量，先和查询变量 y 对齐。
     """
 
     set_eq = extend(s, x, y)
@@ -286,7 +294,7 @@ def unify_mm(x, y, s={}):
         trans = 0
         for x, y in set_eq.items():
             if x == y:
-                # 如果 x = y 删除这个映射（rule b）
+                # 如果 x == y 删除这个映射（rule b）
                 del s[x]
             elif not is_variable(x) and is_variable(y):
                 # 如果 x不是变量，y是变量，在s中重写为 y=x（rule a）
@@ -299,7 +307,7 @@ def unify_mm(x, y, s={}):
             elif not is_variable(x) and not is_variable(y):
                 #在这种情况下，x 和 y 不是变量，如果两个根函数符号不同(谓词名或参数数量不同)，则以失败告终，否则应用 项约简term_reduction（规则 c）
                 if x.op == y.op and len(x.args) == len(y.args):
-                    term_reduction(x, y, s)
+                    term_reduction(x, y, s)  
                     del s[x]
                 else:
                     return None
@@ -334,6 +342,7 @@ class FolKB(KB):
 
     def __init__(self, clauses=None):
         super().__init__()
+        # 定义从句语料库
         self.clauses = []  # inefficient: no indexing
         if clauses:
             for clause in clauses:
@@ -348,13 +357,13 @@ class FolKB(KB):
             raise RuntimeError.CustomRuntimeError(sentence.token, 'Not a definite clause: {}'.format(sentence))
 
     def ask_generator(self, query):
-        return fol_bc_ask(self, query)
+        return fol_bc_ask(self, query) # 反向链接推理
 
     def retract(self, sentence):
         self.clauses.remove(sentence)
 
     def fetch_rules_for_goal(self, goal):
-        return self.clauses
+        return self.clauses # 为提取目标规则，返回知识库所有从句
 
 #前向链接
 def fol_fc_ask(kb, alpha):
@@ -402,7 +411,7 @@ def fol_bc_ask(kb, query):
 #或搜索
 def fol_bc_or(kb, goal, theta):
     for rule in kb.fetch_rules_for_goal(goal):
-        lhs, rhs = parse_definite_clause(standardize_variables(rule))
+        lhs, rhs = parse_definite_clause(standardize_variables(rule)) # lhs为前提子句，rhs为结论子句
         for theta1 in fol_bc_and(kb, lhs, unify_mm(rhs, goal, theta)):
             yield theta1
 
